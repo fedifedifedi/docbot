@@ -2,7 +2,15 @@
 
 Assistant RAG pour PME : un administrateur alimente une base documentaire, un chatbot public répond **uniquement** à partir de ces documents et cite ses sources. S'il ne trouve pas l'information, il le dit au lieu d'inventer.
 
-**Démo** : https://docbot-production-e721.up.railway.app — chat public sur `/`, espace admin sur `/admin`, santé sur `/api/health`.
+## Accès en ligne
+
+| | Lien |
+|---|---|
+| 💬 **Chatbot (public)** | **[https://docbot-production-e721.up.railway.app](https://docbot-production-e721.up.railway.app)** |
+| 🔐 Espace admin (documents, historique) | [https://docbot-production-e721.up.railway.app/admin](https://docbot-production-e721.up.railway.app/admin) |
+| ❤️ État du service | [https://docbot-production-e721.up.railway.app/api/health](https://docbot-production-e721.up.railway.app/api/health) |
+
+Le chatbot répond à partir des documents ajoutés dans l'espace admin : sans document, il indique qu'il ne trouve pas l'information.
 
 Documents du projet : [SPEC.md](SPEC.md) (besoin reformulé, critères d'acceptation) · [CLAUDE.md](CLAUDE.md) (règles du projet) · [AI_WORKFLOW.md](AI_WORKFLOW.md) (journal du développement assisté par IA).
 
