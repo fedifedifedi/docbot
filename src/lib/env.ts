@@ -4,6 +4,7 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .regex(/^postgres(ql)?:\/\//, "DATABASE_URL must be a postgresql:// connection string"),
+  SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
   LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
 });
 

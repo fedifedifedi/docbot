@@ -23,9 +23,12 @@ RUN npx prisma generate && npm run build
 FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=3000
+# Local CLIs (prisma, next, tsx used by the seed) without going through npm.
+ENV PATH=/app/node_modules/.bin:$PATH
 RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 COPY --from=builder --chown=nextjs:nodejs /app ./
 USER nextjs
 EXPOSE 3000
-# Apply migrations, then `exec` so Next.js becomes PID 1 and receives SIGTERM directly.
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && exec node_modules/.bin/next start"]
+# Apply migrations, seed the admin (idempotent, from ADMIN_EMAIL / ADMIN_PASSWORD),
+# then `exec` so Next.js becomes PID 1 and receives SIGTERM directly.
+CMD ["sh", "-c", "prisma migrate deploy && prisma db seed && exec next start"]

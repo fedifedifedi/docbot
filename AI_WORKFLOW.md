@@ -45,5 +45,27 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Bloquant : `npm` en PID 1 ne relaie pas SIGTERM (arrêts lents sur Railway) → `sh -c "migrate deploy && exec next start"`.
 - Mineurs acceptés : URL vide en fallback dans `prisma.config.ts` (nécessaire pour `generate` au build) ; image lourde ; `Conversation.updatedAt` à rafraîchir explicitement à l'ajout d'un message (PR 4).
 
-**Choix assumé**
+**Choix assumé (PR 1)**
 - Image Docker non « standalone » : elle garde `node_modules` pour pouvoir lancer `prisma migrate deploy` au démarrage. Image plus lourde, mais un seul chemin de démarrage, identique en local (compose) et sur Railway.
+
+### PR 2 — `feat/admin-auth` : authentification admin
+
+**IA**
+- Lecture préalable de la doc Next 16 embarquée : `middleware` est devenu `proxy.ts` (runtime Node), et le guide d'authentification recommande un contrôle *optimiste* dans le proxy (cookie seulement) + une vraie vérification côté serveur (Data Access Layer).
+- Session : JWT HS256 signé avec `jose`, cookie `httpOnly` / `sameSite=lax` / `secure` en prod, 8 h. Logique pure (`session-token.ts`) séparée des cookies (`session.ts`, `server-only`).
+- Défense en profondeur : `proxy.ts` redirige les visiteurs non connectés, **et** le layout du groupe `(protected)` appelle `requireAdmin()`.
+- Mots de passe : bcrypt (coût 12) ; comparaison avec un hash factice si l'email est inconnu (pas d'énumération de comptes par mesure du temps) ; message d'erreur unique.
+- Seed idempotent (`upsert`) lisant `ADMIN_EMAIL` / `ADMIN_PASSWORD` validés par zod (échec explicite si absents) ; exécuté au démarrage du conteneur.
+- Aucun identifiant dans le repo : `docker-compose.yml` exige les variables (`${VAR:?}`), la CI génère des secrets jetables avec `openssl rand`.
+- Tests unitaires : token (aller-retour, falsification, mauvais secret, expiration), hash, règles de redirection, validation des identifiants du seed, env.
+
+**Bug trouvé par les tests**
+- Un `ADMIN_EMAIL` entouré d'espaces était rejeté : la validation `z.email()` passait avant la normalisation → `trim().toLowerCase().pipe(z.email())`.
+
+**Revue critique avant merge**
+- Bloquant : le parcours de connexion n'avait jamais été exécuté (pas de Postgres local) → **test Playwright login/logout ajouté dès cette PR** (infra e2e avancée), exécuté en CI contre un build de prod, une base migrée et seedée.
+- Bloquant : `requireAdmin()` faisait confiance au seul jeton → vérifie aussi que le compte existe encore.
+- Bug trouvé par la CI (smoke Docker) : `prisma db seed` lance `tsx`, absent du `PATH` hors npm → `node_modules/.bin` ajouté au `PATH` de l'image.
+- Bug trouvé par l'e2e : après un échec de connexion, React 19 réinitialise le formulaire et **vide le champ email** ; la seconde tentative n'était même pas soumise (`required`). Diagnostic fait en téléchargeant la trace Playwright de la CI. Correctif : l'action renvoie l'email, réinjecté en `defaultValue` ; l'e2e vérifie désormais ce comportement.
+- Faux positif corrigé dans le test : Next.js rend son propre `role="alert"` (annonceur de route) → sélecteur filtré par texte.
+- Mineurs acceptés : pas de limitation de tentatives de connexion (hors périmètre v1, bcrypt coût 12 ralentit le brute force) ; session JWT non révocable avant expiration (8 h) hors suppression du compte ; cookie `secure` en prod — Safari peut le refuser sur `http://localhost` en Docker local (Chrome/Firefox OK).
