@@ -9,6 +9,24 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 3. **Revue critique avant merge** : l'IA relit chaque PR comme un reviewer exigeant et liste les problèmes ; les bloquants sont corrigés avant merge.
 4. **Garde-fous** : aucun secret dans le repo, tests obligatoires, provider LLM mock pour les tests et la CI.
 
+## Bilan
+
+**Répartition des rôles**
+- **Humain** : décisions de produit et d'architecture (provider sélectionnable avec `mock` par défaut, déploiement dès la première PR, seed sans identifiants en dur, revue avant chaque merge), configuration de Railway (variables, port), validation de chaque étape.
+- **IA** : cadrage écrit, code, tests, CI, documentation, revues ; diagnostic des incidents.
+
+**Ce qui a fonctionné**
+- **Lire la documentation de la version installée avant d'écrire** : Next.js 16 et Prisma 7 ont des changements cassants (`middleware` → `proxy`, API de requête asynchrones, `prisma.config.ts`, adapters). La doc embarquée et la référence API Claude ont évité du code « de mémoire » obsolète.
+- **La CI comme filet, surtout sans base locale** (réseau instable, image Postgres impossible à télécharger) : elle a attrapé six vrais bugs que les tests locaux ne voyaient pas — client Prisma absent du build Docker, `tsx` hors du `PATH`, formulaire vidé par React 19, dérive Prisma sur la colonne générée, « les » absent des mots vides PostgreSQL, ordre des messages indéterminé.
+- **Vérifier le résultat, pas seulement les tests** : les tests du découpage passaient du premier coup ; l'inspection de la sortie sur un document réaliste a révélé des chunks trop gros.
+- **Revues avant merge** : chaque PR a eu au moins un correctif issu de la relecture (smoke test Docker, vérification du compte en session, `createMany`, limiteur de débit…) — y compris sur un correctif de revue lui-même (limiteur contournable via `X-Forwarded-For`).
+- **Diagnostiquer par les preuves** : traces Playwright téléchargées depuis la CI, statuts de déploiement Railway lus via l'API GitHub, vrai navigateur plutôt que requête artisanale.
+
+**Ce qui aurait pu être mieux**
+- Plusieurs allers-retours CI auraient été évités avec une base locale ; le diagnostic réseau (clé Wi-Fi USB) a été posé tôt mais n'était pas corrigeable côté IA.
+- L'IA a d'abord attribué le 502 de production à des variables manquantes ; la vraie cause (port) n'a été trouvée qu'en lisant les statuts de déploiement — il aurait fallu commencer par là.
+- Une fausse alerte (500 sur une requête `curl` reconstituée à la main) a coûté une vérification supplémentaire : tester dans un vrai client avant de conclure.
+
 ## Journal
 
 ### Étape 0 — Cadrage (commit initial)
@@ -140,3 +158,14 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 **Revue critique avant merge**
 - Corrigé : `?page=99` affichait « Page 99 / 2 » avec une liste vide et des liens incohérents → page bornée entre 1 et le nombre de pages (test d'intégration ajouté, `NaN` compris).
 - Mineur, documenté dans le README : les questions des visiteurs peuvent contenir des données personnelles et aucune durée de conservation n'est définie.
+
+### PR 7 — `chore/final` : documentation finale
+
+**IA**
+- README final : fonctionnalités rapportées au cahier des charges, schéma du pipeline, providers, variables, tests (avec ce que chaque niveau couvre), CI, déploiement et dépannage, sécurité, **limites connues**.
+- SPEC.md : critères d'acceptation cochés avec la preuve de chacun ; nuance explicite sur le refus avec le provider réel (prompt) par rapport au garde-fou déterministe.
+- CLAUDE.md réaligné sur le code (PostgreSQL 17, `proxy.ts`, pas de dossier `components/`).
+- Bilan en tête de ce journal.
+
+**Non fait par l'IA (hors de sa portée)**
+- Passage de la production sur Claude : nécessite de créer une clé API et de la saisir dans Railway (`LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`). Le provider est prêt et testé sans clé (requêtes vérifiées via un `fetch` factice) ; un essai réel reste à faire une fois la clé ajoutée.

@@ -9,7 +9,7 @@ Assistant RAG pour PME : admin qui gère des documents, chatbot public qui répo
 ## Stack
 
 - Next.js (App Router, TypeScript strict, Server Actions + Route Handlers)
-- Prisma + PostgreSQL 16 (Docker) — recherche full-text Postgres (`tsvector` + GIN), **pas d'embeddings**
+- Prisma + PostgreSQL 17 (Docker) — recherche full-text Postgres (`tsvector` + GIN), **pas d'embeddings**
 - Tailwind CSS
 - Validation : zod · Hash : bcryptjs · Session : cookie signé (jose)
 - LLM : interface `LLMProvider` (`src/lib/llm/`), choisi par `LLM_PROVIDER=mock|anthropic` (défaut `mock`)
@@ -21,14 +21,14 @@ Assistant RAG pour PME : admin qui gère des documents, chatbot public qui répo
 
 ```
 src/
-  app/                 # routes Next.js : (public) chat, admin/*, api/*
-  components/          # composants UI
+  app/                 # routes Next.js : / (chat), admin/*, api/* — composants à côté de leur page
+  proxy.ts             # contrôle optimiste des routes /admin (ex-middleware)
   lib/
     auth/              # session, hash, garde admin
     documents/         # chunking (pur), service documents
     search/            # construction de requête FTS (pur) + requête SQL
     llm/               # provider.ts (interface), anthropic.ts, mock.ts, index.ts (factory)
-    chat/              # pipeline question → recherche → LLM → persistance
+    chat/              # pipeline question → recherche → LLM → persistance, historique, limiteur
     db.ts              # client Prisma singleton
 prisma/                # schema.prisma, migrations, seed.ts
 tests/
@@ -46,7 +46,7 @@ npm run dev                      # app en dev (http://localhost:3000)
 npm run lint                     # ESLint
 npm run typecheck                # next typegen + tsc --noEmit
 npm test                         # Vitest unitaires
-npm run test:integration         # Vitest contre Postgres (DATABASE_URL de test)
+npm run test:integration         # Vitest contre Postgres (DATABASE_URL de test — vide documents et conversations)
 npm run test:e2e                 # Playwright (LLM_PROVIDER=mock)
 npm run build                    # build de prod
 npm run db:migrate               # prisma migrate dev (nouvelle migration)
