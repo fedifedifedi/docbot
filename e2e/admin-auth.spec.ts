@@ -24,6 +24,9 @@ test("admin pages are protected, login and logout work", async ({ page }) => {
   ).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/login$/);
 
+  // The email is kept after a failed attempt (React resets forms after an action).
+  await expect(page.getByLabel("Email")).toHaveValue(email);
+
   // Right credentials: dashboard.
   await page.getByLabel("Mot de passe").fill(password);
   await page.getByRole("button", { name: "Se connecter" }).click();

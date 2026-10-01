@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { login, type LoginState } from "./actions";
 
-const initialState: LoginState = { error: null };
+const initialState: LoginState = { error: null, email: "" };
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(login, initialState);
@@ -16,6 +16,7 @@ export function LoginForm() {
           type="email"
           name="email"
           autoComplete="username"
+          defaultValue={state.email}
           required
           className="rounded-md border border-zinc-300 px-3 py-2 font-normal dark:border-zinc-700 dark:bg-zinc-900"
         />
