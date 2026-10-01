@@ -15,27 +15,27 @@ export type ConversationSummary = {
 /** Conversations, most recent activity first (SPEC F6). `page` starts at 1. */
 export async function listConversations(page = 1) {
   const db = getDb();
-  const safePage = Math.max(1, Math.floor(page));
-  const [total, rows] = await Promise.all([
-    db.conversation.count(),
-    db.conversation.findMany({
-      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-      skip: (safePage - 1) * CONVERSATIONS_PAGE_SIZE,
-      take: CONVERSATIONS_PAGE_SIZE,
-      select: {
-        id: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: { select: { messages: true } },
-        messages: {
-          where: { role: "USER" },
-          orderBy: { createdAt: "asc" },
-          take: 1,
-          select: { content: true },
-        },
+  const total = await db.conversation.count();
+  const pageCount = Math.max(1, Math.ceil(total / CONVERSATIONS_PAGE_SIZE));
+  // Out-of-range pages (?page=0, ?page=99) are clamped instead of rendering an empty page.
+  const safePage = Math.min(pageCount, Math.max(1, Math.floor(page) || 1));
+  const rows = await db.conversation.findMany({
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    skip: (safePage - 1) * CONVERSATIONS_PAGE_SIZE,
+    take: CONVERSATIONS_PAGE_SIZE,
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { messages: true } },
+      messages: {
+        where: { role: "USER" },
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { content: true },
       },
-    }),
-  ]);
+    },
+  });
 
   const conversations: ConversationSummary[] = rows.map((row) => ({
     id: row.id,
@@ -44,12 +44,7 @@ export async function listConversations(page = 1) {
     messageCount: row._count.messages,
     firstQuestion: row.messages[0]?.content ?? null,
   }));
-  return {
-    conversations,
-    page: safePage,
-    pageCount: Math.max(1, Math.ceil(total / CONVERSATIONS_PAGE_SIZE)),
-    total,
-  };
+  return { conversations, page: safePage, pageCount, total };
 }
 
 /** One conversation with its messages in order, sources parsed from their JSON snapshot. */

@@ -36,7 +36,12 @@ describe("conversation history", () => {
     const second = await listConversations(2);
     expect(second.pageCount).toBe(2);
     expect(second.conversations).toHaveLength(3);
-    expect((await listConversations(0)).page).toBe(1); // out-of-range pages are clamped
+    // Out-of-range pages are clamped.
+    expect((await listConversations(0)).page).toBe(1);
+    const beyond = await listConversations(99);
+    expect(beyond.page).toBe(2);
+    expect(beyond.conversations).toHaveLength(3);
+    expect((await listConversations(Number.NaN)).page).toBe(1);
   });
 
   it("returns a conversation's messages in order with parsed sources", async () => {

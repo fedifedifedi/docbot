@@ -136,3 +136,7 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Pages `/admin/conversations` et `/admin/conversations/[id]` (questions, réponses, sources citées), liens dans la navigation et le tableau de bord.
 - Tests : unitaires (lecture des sources), intégration PostgreSQL (tri par activité, comptage, pagination, ordre des messages), et **étape 6 de l'e2e** : le parcours SPEC §5 est désormais couvert de bout en bout.
 - Le tri par activité et l'ordre question → réponse reposent sur deux correctifs de la PR 5 (mise à jour de `updatedAt`, horodatages explicites), notés dès la revue de la PR 1.
+
+**Revue critique avant merge**
+- Corrigé : `?page=99` affichait « Page 99 / 2 » avec une liste vide et des liens incohérents → page bornée entre 1 et le nombre de pages (test d'intégration ajouté, `NaN` compris).
+- Mineur, documenté dans le README : les questions des visiteurs peuvent contenir des données personnelles et aucune durée de conservation n'est définie.
