@@ -8,7 +8,7 @@ const envSchema = z
     SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
     LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
     ANTHROPIC_API_KEY: z.string().optional(),
-    ANTHROPIC_MODEL: z.string().min(1).default("claude-opus-5-5"),
+    ANTHROPIC_MODEL: z.string().min(1).default("claude-haiku-4-5-20251001"),
   })
   .refine((env) => env.LLM_PROVIDER !== "anthropic" || Boolean(env.ANTHROPIC_API_KEY), {
     path: ["ANTHROPIC_API_KEY"],

@@ -2,15 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildUserMessage, SYSTEM_PROMPT } from "./prompt";
 import { LLMError, type GenerateAnswerInput, type LLMProvider } from "./provider";
 
-export const DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5";
-
-// Models that accept server-side refusal fallbacks (`fallbacks: "default"`).
-const SERVER_FALLBACK_MODELS = new Set([
-  "claude-fable-5-1",
-  "claude-opus-5-5",
-  "claude-opus-5",
-  "claude-sonnet-5-5",
-]);
+export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 export type AnthropicProviderOptions = {
   apiKey: string;
@@ -19,6 +11,11 @@ export type AnthropicProviderOptions = {
   fetch?: typeof fetch;
   maxRetries?: number;
 };
+
+/** Haiku 4.5 rejects the `effort` parameter; newer models accept it. */
+function supportsEffort(model: string): boolean {
+  return !model.startsWith("claude-haiku");
+}
 
 /** Claude, through the official SDK. Single non-streaming call: answers are short. */
 export class AnthropicProvider implements LLMProvider {
@@ -32,17 +29,13 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async generateAnswer(input: GenerateAnswerInput): Promise<string> {
-    const useFallback = SERVER_FALLBACK_MODELS.has(this.model);
-    let response: Anthropic.Beta.BetaMessage;
+    let response: Anthropic.Message;
     try {
-      response = await this.client.beta.messages.create({
+      response = await this.client.messages.create({
         model: this.model,
         max_tokens: 16000,
         // Grounded Q&A over short excerpts: low effort keeps latency and cost down.
-        ...(this.model.startsWith("claude-haiku") ? {} : { output_config: { effort: "low" as const } }),
-        ...(useFallback
-          ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
-          : {}),
+        ...(supportsEffort(this.model) ? { output_config: { effort: "low" as const } } : {}),
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildUserMessage(input) }],
       });

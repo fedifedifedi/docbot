@@ -33,7 +33,7 @@ describe("parseEnv", () => {
     ).toThrow(/ANTHROPIC_API_KEY/);
     expect(parseEnv({ ...base, LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "sk-test" })).toMatchObject({
       ANTHROPIC_API_KEY: "sk-test",
-      ANTHROPIC_MODEL: "claude-opus-5-5",
+      ANTHROPIC_MODEL: "claude-haiku-4-5-20251001",
     });
     expect(parseEnv({ ...base, ANTHROPIC_API_KEY: "" }).ANTHROPIC_API_KEY).toBeUndefined();
   });
