@@ -69,3 +69,22 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Bug trouvé par l'e2e : après un échec de connexion, React 19 réinitialise le formulaire et **vide le champ email** ; la seconde tentative n'était même pas soumise (`required`). Diagnostic fait en téléchargeant la trace Playwright de la CI. Correctif : l'action renvoie l'email, réinjecté en `defaultValue` ; l'e2e vérifie désormais ce comportement.
 - Faux positif corrigé dans le test : Next.js rend son propre `role="alert"` (annonceur de route) → sélecteur filtré par texte.
 - Mineurs acceptés : pas de limitation de tentatives de connexion (hors périmètre v1, bcrypt coût 12 ralentit le brute force) ; session JWT non révocable avant expiration (8 h) hors suppression du compte ; cookie `secure` en prod — Safari peut le refuser sur `http://localhost` en Docker local (Chrome/Firefox OK).
+
+### PR 4 — `feat/documents` : gestion des documents et découpage
+
+> La PR #3 est une PR de documentation (URL de production + dépannage Railway), d'où la numérotation.
+
+**IA**
+- `chunkText()` pure et déterministe (SPEC F3) : normalisation (BOM, fins de ligne, espaces), découpage par paragraphes, sections Markdown (chaque chunk d'une section commence par son titre, pour rester compréhensible et trouvable seul), redécoupage des paragraphes trop longs par phrases puis par mots, chevauchement de ~100 caractères à l'intérieur d'une section, jamais au-delà de 1 200 caractères.
+- Validation pure des entrées (`readDocumentInput`) : texte collé ou fichier `.txt`/`.md`, 1 Mo max, UTF-8 strict (`TextDecoder` en mode `fatal`), titre par défaut tiré du nom de fichier.
+- Service Prisma : création du document et de ses chunks en une seule écriture imbriquée (atomique), liste avec nombre de chunks, détail, suppression (cascade).
+- UI admin : formulaire d'ajout (`useActionState`, titre et texte conservés en cas d'erreur), liste, page de détail avec les chunks, suppression avec confirmation. Chaque Server Action rappelle `requireAdmin()`.
+- `serverActions.bodySizeLimit` relevé à 3 Mo (le défaut de Next, 1 Mo, aurait refusé un fichier de 1 Mo une fois l'enveloppe multipart ajoutée) — trouvé en lisant la doc Next 16 avant d'écrire l'upload.
+
+**Vérification humaine du résultat, pas seulement des tests**
+- Les 52 tests unitaires passaient du premier coup ; sortie du chunker inspectée sur un document réaliste → défaut trouvé : un paragraphe trop long était redécoupé à la taille *maximale* (chunk de 1 057 caractères) au lieu de la taille *cible*. Corrigé (751) + test ajouté.
+
+**Revue critique avant merge**
+- Performance : la création imbriquée faisait un INSERT par chunk (~1 300 pour un fichier de 1 Mo) → `createMany` (un seul INSERT multi-lignes).
+- Robustesse : un texte collé > 3 Mo était coupé par la limite des Server Actions avant la validation → page d'erreur générique. `maxLength` côté client sur la zone de texte (constantes partagées dans `limits.ts` pour ne pas embarquer zod dans le bundle client).
+- Mineurs acceptés : le fichier l'emporte silencieusement sur le texte collé ; type de fichier contrôlé par extension + UTF-8 strict ; service couvert par l'e2e, l'infra de tests d'intégration arrive avec la recherche.
