@@ -4,12 +4,18 @@ import { extractSearchTerms, MAX_SEARCH_TERMS } from "@/lib/search/terms";
 describe("extractSearchTerms", () => {
   it("keeps the words of a natural-language question, lower-cased", () => {
     expect(extractSearchTerms("Quels sont les horaires du Support ?")).toEqual([
-      "quels",
       "sont",
-      "les",
       "horaires",
       "du",
       "support",
+    ]);
+  });
+
+  it("drops interrogatives, politeness and 'les' (missing from PostgreSQL's French stop list)", () => {
+    expect(extractSearchTerms("Bonjour, comment puis-je savoir quels sont les délais svp ?")).toEqual([
+      "je",
+      "sont",
+      "délais",
     ]);
   });
 

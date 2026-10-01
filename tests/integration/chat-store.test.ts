@@ -23,13 +23,14 @@ describe("saveExchange", () => {
 
     const messages = await getDb().message.findMany({
       where: { conversationId: id },
-      orderBy: [{ createdAt: "asc" }, { role: "desc" }],
+      orderBy: { createdAt: "asc" },
     });
     expect(messages.map((m) => [m.role, m.content])).toEqual([
       ["USER", "Horaires ?"],
       ["ASSISTANT", "9h-18h [1]."],
     ]);
     expect(messages[1].sources).toEqual([source]);
+    expect(messages[1].createdAt.getTime()).toBeGreaterThan(messages[0].createdAt.getTime());
   });
 
   it("appends to an existing conversation and bumps updatedAt", async () => {

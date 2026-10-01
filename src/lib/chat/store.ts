@@ -19,10 +19,20 @@ export async function saveExchange({ conversationId, question, answer, sources }
     const conversation =
       existing ?? (await tx.conversation.create({ data: {}, select: { id: true } }));
 
+    // Explicit timestamps: inside a transaction CURRENT_TIMESTAMP is frozen, so both
+    // messages would share the same created_at and their order would be undefined.
+    const askedAt = new Date();
+    const answeredAt = new Date(askedAt.getTime() + 1);
     await tx.message.createMany({
       data: [
-        { conversationId: conversation.id, role: "USER", content: question },
-        { conversationId: conversation.id, role: "ASSISTANT", content: answer, sources },
+        { conversationId: conversation.id, role: "USER", content: question, createdAt: askedAt },
+        {
+          conversationId: conversation.id,
+          role: "ASSISTANT",
+          content: answer,
+          sources,
+          createdAt: answeredAt,
+        },
       ],
     });
     // Adding messages does not touch the conversation row: bump it for "most recent" sorting.
