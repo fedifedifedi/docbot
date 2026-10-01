@@ -4,7 +4,7 @@ Assistant RAG pour PME : un administrateur alimente une base documentaire, un ch
 
 > 🚧 Projet en cours de construction — voir [SPEC.md](SPEC.md) pour le périmètre et [AI_WORKFLOW.md](AI_WORKFLOW.md) pour le journal de développement.
 
-**Démo** : _URL Railway ajoutée après le premier déploiement._
+**Démo** : https://docbot-production-e721.up.railway.app (espace admin : `/admin`, santé : `/api/health`)
 
 ## Stack
 
@@ -78,6 +78,8 @@ Déploiement continu via l'intégration GitHub de Railway : chaque merge dans `m
 4. **Settings → Networking → Generate Domain**.
 
 Au démarrage, le conteneur applique les migrations (`prisma migrate deploy`), exécute le seed de l'admin (idempotent) puis lance Next.js ; Railway vérifie la santé via `GET /api/health`.
+
+**Dépannage** : une erreur 502 « Application failed to respond » signifie que le conteneur s'est arrêté au démarrage. Consulter les *Deploy Logs* du service : le plus souvent une variable manquante (`Cannot seed admin: ADMIN_EMAIL…`, `Invalid environment: SESSION_SECRET…`).
 
 ## CI
 
