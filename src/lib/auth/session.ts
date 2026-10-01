@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getDb } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { ADMIN_LOGIN } from "./admin-routes";
 import {
@@ -33,10 +34,14 @@ export async function getSession(): Promise<SessionPayload | null> {
 
 /**
  * Authorization check for admin pages and server actions. The proxy only does an
- * optimistic redirect; this is the check that actually protects data.
+ * optimistic redirect; this is the check that actually protects data. It also checks
+ * the account still exists, so a deleted admin's token stops working immediately.
  */
 export async function requireAdmin(): Promise<SessionPayload> {
   const session = await getSession();
-  if (!session) redirect(ADMIN_LOGIN);
+  const user = session
+    ? await getDb().user.findUnique({ where: { id: session.userId }, select: { id: true } })
+    : null;
+  if (!session || !user) redirect(ADMIN_LOGIN);
   return session;
 }
