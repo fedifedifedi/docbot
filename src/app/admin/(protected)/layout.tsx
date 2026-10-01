@@ -15,6 +15,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/documents" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
             Documents
           </Link>
+          <Link href="/admin/conversations" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+            Conversations
+          </Link>
           <Link href="/" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
             Voir le chat public
           </Link>

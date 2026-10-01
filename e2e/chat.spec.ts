@@ -3,8 +3,11 @@ import { loginAsAdmin, uniqueId } from "./helpers";
 
 const NOT_FOUND = "Je ne trouve pas cette information dans la documentation.";
 
-/** SPEC §5 steps 1–5: the admin adds a document, a visitor gets a sourced answer, then a refusal. */
-test("public chat answers from the documentation with sources, and refuses otherwise", async ({
+/**
+ * SPEC §5, full journey: the admin adds a document, a visitor gets a sourced answer then a
+ * refusal, and the admin finds that conversation in the history.
+ */
+test("public chat answers from the documentation with sources, refuses otherwise, and is logged", async ({
   page,
   browser,
 }) => {
@@ -42,6 +45,22 @@ test("public chat answers from the documentation with sources, and refuses other
   await expect(answers).toHaveCount(2);
   await expect(answers.nth(1)).toHaveText(NOT_FOUND);
   await expect(answers.nth(1).getByRole("list", { name: "Sources" })).toHaveCount(0);
+
+  // 6. The admin finds the conversation in the history, with both exchanges and the source.
+  await page.goto("/admin/conversations");
+  await page.getByRole("link", { name: `Quels sont les horaires du support ${product} ?` }).click();
+  await expect(page.getByRole("heading", { name: "Conversation" })).toBeVisible();
+  const items = page.getByRole("listitem").filter({ hasText: /^(Visiteur|DocBot) ·/ });
+  await expect(items).toHaveCount(4);
+  await expect(page.getByRole("listitem", { name: "Question du visiteur" })).toHaveText([
+    new RegExp(`Quels sont les horaires du support ${product}`),
+    /Quel est le prix du forfait entreprise/,
+  ]);
+  const replies = page.getByRole("listitem", { name: "Réponse de DocBot" });
+  await expect(replies.first()).toContainText("9h à 18h du lundi au vendredi");
+  await expect(replies.first().getByRole("list", { name: "Sources" })).toContainText(title);
+  await expect(replies.nth(1)).toContainText(NOT_FOUND);
+  await expect(replies.nth(1).getByRole("list", { name: "Sources" })).toHaveCount(0);
 });
 
 test("chat API validates its input", async ({ request }) => {

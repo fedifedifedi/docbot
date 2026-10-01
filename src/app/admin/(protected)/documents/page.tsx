@@ -4,9 +4,9 @@ import { requireAdmin } from "@/lib/auth/session";
 import { listDocuments } from "@/lib/documents/service";
 import { AddDocumentForm } from "./add-document-form";
 import { DeleteDocumentButton } from "./delete-document-button";
-import { formatDate, sourceLabel } from "./format";
+import { formatDate, sourceLabel } from "../format";
 
-export const metadata: Metadata = { title: "Documents — DocBot admin" };
+export const metadata: Metadata = { title: "Documents â€” DocBot admin" };
 
 export default async function DocumentsPage() {
   await requireAdmin();
@@ -33,7 +33,7 @@ export default async function DocumentsPage() {
                   <th className="py-2 pr-4 font-medium">Titre</th>
                   <th className="py-2 pr-4 font-medium">Source</th>
                   <th className="py-2 pr-4 font-medium">Chunks</th>
-                  <th className="py-2 pr-4 font-medium">Ajouté le</th>
+                  <th className="py-2 pr-4 font-medium">AjoutÃ© le</th>
                   <th className="py-2 font-medium">
                     <span className="sr-only">Actions</span>
                   </th>
