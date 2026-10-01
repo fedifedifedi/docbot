@@ -127,3 +127,12 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Bloquant : `/api/chat` est public et peut consommer des crédits LLM → limiteur en mémoire, 20 requêtes/minute par client (une seule instance sur Railway).
 - En relisant ce correctif : la première version identifiait le client par la *première* adresse de `X-Forwarded-For`, que le client peut forger. Corrigé : `X-Real-IP`, puis la *dernière* adresse (celle ajoutée par le proxy), avec un test dédié.
 - Mineurs acceptés : appel Anthropic jusqu'à ~3 min dans le pire cas (timeout 60 s, 2 retries) ; conversation perdue au rechargement de la page ; recherche sur la seule question courante (pas de reformulation à partir de l'historique) ; en production sans clé, le provider `mock` répond par extraction de phrases.
+
+### PR 6 — `feat/admin-history` : historique des conversations
+
+**IA**
+- Service `history.ts` : liste paginée (20 par page) triée par dernière activité, avec nombre de messages et première question ; détail d'une conversation avec ses messages dans l'ordre.
+- Les sources sont stockées en JSON : lecture par une fonction pure tolérante (`parseStoredSources`, zod) qui ignore les entrées invalides au lieu de faire planter la page.
+- Pages `/admin/conversations` et `/admin/conversations/[id]` (questions, réponses, sources citées), liens dans la navigation et le tableau de bord.
+- Tests : unitaires (lecture des sources), intégration PostgreSQL (tri par activité, comptage, pagination, ordre des messages), et **étape 6 de l'e2e** : le parcours SPEC §5 est désormais couvert de bout en bout.
+- Le tri par activité et l'ordre question → réponse reposent sur deux correctifs de la PR 5 (mise à jour de `updatedAt`, horodatages explicites), notés dès la revue de la PR 1.

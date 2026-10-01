@@ -14,7 +14,12 @@ export default function AdminHome() {
           </Link>{" "}
           — ajouter, consulter et supprimer la documentation utilisée par le chatbot.
         </li>
-        <li>L&apos;historique des conversations arrive dans une prochaine version.</li>
+        <li>
+          <Link href="/admin/conversations" className="font-medium text-zinc-900 hover:underline dark:text-zinc-100">
+            Conversations
+          </Link>{" "}
+          — consulter les questions posées au chatbot, ses réponses et les sources citées.
+        </li>
       </ul>
     </div>
   );

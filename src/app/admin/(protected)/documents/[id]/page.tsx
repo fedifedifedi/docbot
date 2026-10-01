@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { getDocumentWithChunks } from "@/lib/documents/service";
 import { DeleteDocumentButton } from "../delete-document-button";
-import { formatDate, sourceLabel } from "../format";
+import { formatDate, sourceLabel } from "../../format";
 
-export const metadata: Metadata = { title: "Document — DocBot admin" };
+export const metadata: Metadata = { title: "Document â€” DocBot admin" };
 
 export default async function DocumentPage({ params }: PageProps<"/admin/documents/[id]">) {
   await requireAdmin();
@@ -17,14 +17,14 @@ export default async function DocumentPage({ params }: PageProps<"/admin/documen
   return (
     <div className="flex flex-col gap-6">
       <Link href="/admin/documents" className="text-sm text-zinc-500 hover:underline">
-        ← Documents
+        â† Documents
       </Link>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{document.title}</h1>
           <p className="text-sm text-zinc-500">
-            {sourceLabel(document.source, document.filename)} · ajouté le{" "}
-            {formatDate(document.createdAt)} · {document.chunks.length} chunk
+            {sourceLabel(document.source, document.filename)} Â· ajoutÃ© le{" "}
+            {formatDate(document.createdAt)} Â· {document.chunks.length} chunk
             {document.chunks.length > 1 ? "s" : ""}
           </p>
         </div>
