@@ -1,11 +1,5 @@
 import { expect, test } from "@playwright/test";
-
-function adminCredentials() {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-  if (!email || !password) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be set for e2e tests");
-  return { email, password };
-}
+import { adminCredentials } from "./helpers";
 
 test("admin pages are protected, login and logout work", async ({ page }) => {
   const { email, password } = adminCredentials();
