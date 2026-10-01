@@ -94,8 +94,8 @@ Embeddings / recherche vectorielle, PDF/DOCX, multi-admin et rôles, streaming d
 
 ## 7. Critères d'acceptation
 
-- [ ] `docker compose up` sur une machine vierge → app fonctionnelle avec admin seedé.
-- [ ] Le parcours de la section 5 passe en e2e avec le provider mock.
-- [ ] Une question hors documentation ne produit jamais de réponse inventée ni de source.
-- [ ] CI verte sur `main` ; ≥ 3 PR mergées.
-- [ ] App déployée sur Railway, URL dans le README.
+- [x] `docker compose up` sur une machine vierge → app fonctionnelle avec admin seedé. *(Vérifié à chaque exécution de la CI : job « Docker stack smoke test », base vierge.)*
+- [x] Le parcours de la section 5 passe en e2e avec le provider mock. *(`e2e/chat.spec.ts`, étapes 1 à 6.)*
+- [x] Une question hors documentation ne produit jamais de réponse inventée ni de source. *(Garde-fou déterministe sans appel LLM + refus sans source, couverts par les tests unitaires, d'intégration et e2e. Avec `anthropic`, le cas « chunks trouvés mais insuffisants » repose sur le prompt — voir les limites connues du README.)*
+- [x] CI verte sur `main` ; ≥ 3 PR mergées. *(7 PR.)*
+- [x] App déployée sur Railway, URL dans le README.
