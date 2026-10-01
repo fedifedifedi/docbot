@@ -14,7 +14,8 @@ export async function createDocument(input: DocumentInput) {
       source: input.source,
       filename: input.filename,
       content: input.content,
-      chunks: { create: chunks.map((content, index) => ({ index, content })) },
+      // One multi-row INSERT instead of one per chunk (a 1 MB file is ~1,300 chunks).
+      chunks: { createMany: { data: chunks.map((content, index) => ({ index, content })) } },
     },
     select: { id: true },
   });

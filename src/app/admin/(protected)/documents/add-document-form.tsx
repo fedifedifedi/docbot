@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { MAX_DOCUMENT_BYTES, MAX_TITLE_LENGTH } from "@/lib/documents/limits";
 import { addDocument, type AddDocumentState } from "./actions";
 
 const initialState: AddDocumentState = { error: null, success: null, title: "", text: "" };
@@ -17,7 +18,7 @@ export function AddDocumentForm() {
         Titre
         <input
           name="title"
-          maxLength={200}
+          maxLength={MAX_TITLE_LENGTH}
           defaultValue={state.title}
           placeholder="Optionnel pour un fichier (nom du fichier par défaut)"
           className={field}
@@ -25,7 +26,15 @@ export function AddDocumentForm() {
       </label>
       <label className="flex flex-col gap-1 text-sm font-medium">
         Texte
-        <textarea name="text" rows={8} defaultValue={state.text} className={field} />
+        {/* Client-side cap: bigger payloads would be cut off by the Server Action body limit
+            before reaching the server-side validation and its readable error message. */}
+        <textarea
+          name="text"
+          rows={8}
+          maxLength={MAX_DOCUMENT_BYTES}
+          defaultValue={state.text}
+          className={field}
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm font-medium">
         … ou fichier .txt / .md (1 Mo max)

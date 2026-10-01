@@ -1,7 +1,7 @@
 import { z } from "zod";
+import { MAX_DOCUMENT_BYTES, MAX_TITLE_LENGTH } from "./limits";
 
-export const MAX_DOCUMENT_BYTES = 1024 * 1024;
-export const MAX_TITLE_LENGTH = 200;
+export { MAX_DOCUMENT_BYTES, MAX_TITLE_LENGTH };
 export const ALLOWED_EXTENSIONS = [".txt", ".md"] as const;
 
 export type DocumentInput = {

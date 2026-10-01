@@ -83,3 +83,8 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 
 **Vérification humaine du résultat, pas seulement des tests**
 - Les 52 tests unitaires passaient du premier coup ; sortie du chunker inspectée sur un document réaliste → défaut trouvé : un paragraphe trop long était redécoupé à la taille *maximale* (chunk de 1 057 caractères) au lieu de la taille *cible*. Corrigé (751) + test ajouté.
+
+**Revue critique avant merge**
+- Performance : la création imbriquée faisait un INSERT par chunk (~1 300 pour un fichier de 1 Mo) → `createMany` (un seul INSERT multi-lignes).
+- Robustesse : un texte collé > 3 Mo était coupé par la limite des Server Actions avant la validation → page d'erreur générique. `maxLength` côté client sur la zone de texte (constantes partagées dans `limits.ts` pour ne pas embarquer zod dans le bundle client).
+- Mineurs acceptés : le fichier l'emporte silencieusement sur le texte collé ; type de fichier contrôlé par extension + UTF-8 strict ; service couvert par l'e2e, l'infra de tests d'intégration arrive avec la recherche.
