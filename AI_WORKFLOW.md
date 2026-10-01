@@ -169,3 +169,14 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 
 **Non fait par l'IA (hors de sa portée)**
 - Passage de la production sur Claude : nécessite de créer une clé API et de la saisir dans Railway (`LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`). Le provider est prêt et testé sans clé (requêtes vérifiées via un `fetch` factice) ; un essai réel reste à faire une fois la clé ajoutée.
+
+### PR 8 — `fix/haiku-model` : modèle par défaut et retrait du fallback
+
+**Décision humaine** : modèle par défaut `claude-haiku-4-5-20251001` (au lieu de `claude-opus-5-5`) et **pas de relance sur un autre modèle**. L'IA avait appliqué par défaut les recommandations de la référence API (modèle Opus, fallbacks serveur) ; c'est un choix de coût et de maîtrise qui revient à l'humain. La demande initiale n'avait pas été appliquée : l'humain l'a relevée en relisant le README.
+
+**IA**
+- Provider : appel standard `messages.create` (plus d'API bêta ni de `fallbacks`) ; `effort: low` envoyé seulement aux modèles qui l'acceptent (Haiku 4.5 le rejette), le modèle restant configurable par `ANTHROPIC_MODEL`.
+- Tests du provider mis à jour : modèle par défaut, absence de fallback et d'en-tête bêta, `effort` selon le modèle.
+- Valeur par défaut alignée partout (env, `.env.example`, docker-compose, README).
+- Scénario « Livraison » signalé par l'humain reproduit en **test d'intégration** (vraie recherche PostgreSQL + provider mock, comme l'API en production sans clé) : « Quel est le délai de livraison ? » → réponse sourcée ; sans document correspondant → refus sans source. Un cas supplémentaire écrit d'abord a été retiré en relecture : il aurait validé une réponse hors sujet du mock (« les délais peuvent varier… » au lieu de « 48 heures »).
+- Description et site du dépôt GitHub renseignés via `gh repo edit`.

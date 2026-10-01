@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnthropicProvider } from "@/lib/llm/anthropic";
+import { AnthropicProvider, DEFAULT_ANTHROPIC_MODEL } from "@/lib/llm/anthropic";
 import { SYSTEM_PROMPT } from "@/lib/llm/prompt";
 import { LLMError } from "@/lib/llm/provider";
 
@@ -13,7 +13,7 @@ function message(overrides: Record<string, unknown> = {}) {
     id: "msg_1",
     type: "message",
     role: "assistant",
-    model: "claude-opus-5-5",
+    model: DEFAULT_ANTHROPIC_MODEL,
     content: [{ type: "text", text: "Ouvert de 9h à 18h [1]." }],
     stop_reason: "end_turn",
     stop_sequence: null,
@@ -40,6 +40,10 @@ function fakeFetch(status: number, body: unknown) {
 }
 
 describe("AnthropicProvider", () => {
+  it("defaults to Claude Haiku 4.5", () => {
+    expect(DEFAULT_ANTHROPIC_MODEL).toBe("claude-haiku-4-5-20251001");
+  });
+
   it("sends the system prompt, the excerpts and the model, and returns the text", async () => {
     const { fn, calls } = fakeFetch(200, message());
     const provider = new AnthropicProvider({ apiKey: "test-key", fetch: fn, maxRetries: 0 });
@@ -50,25 +54,34 @@ describe("AnthropicProvider", () => {
     const { url, headers, body } = calls[0];
     expect(url).toContain("/v1/messages");
     expect(headers.get("x-api-key")).toBe("test-key");
-    expect(headers.get("anthropic-beta")).toContain("server-side-fallback-2026-07-01");
-    expect(body.model).toBe("claude-opus-5-5");
+    expect(body.model).toBe("claude-haiku-4-5-20251001");
     expect(body.system).toBe(SYSTEM_PROMPT);
-    expect(body.fallbacks).toBe("default");
-    expect(body.output_config).toEqual({ effort: "low" });
     expect(JSON.stringify(body.messages)).toContain("Ouvert de 9h à 18h.");
   });
 
-  it("does not send fallbacks for models that do not support them", async () => {
+  it("never asks for a fallback to another model", async () => {
     const { fn, calls } = fakeFetch(200, message());
-    const provider = new AnthropicProvider({
-      apiKey: "k",
-      model: "claude-haiku-4-5",
-      fetch: fn,
-      maxRetries: 0,
-    });
-    await provider.generateAnswer(input);
+    await new AnthropicProvider({ apiKey: "k", fetch: fn, maxRetries: 0 }).generateAnswer(input);
+
     expect(calls[0].body.fallbacks).toBeUndefined();
-    expect(calls[0].body.output_config).toBeUndefined();
+    expect(calls[0].headers.get("anthropic-beta")).toBeNull();
+  });
+
+  it("sends `effort` only to models that accept it (not Haiku 4.5)", async () => {
+    const haiku = fakeFetch(200, message());
+    await new AnthropicProvider({ apiKey: "k", fetch: haiku.fn, maxRetries: 0 }).generateAnswer(input);
+    expect(haiku.calls[0].body.output_config).toBeUndefined();
+
+    const opus = fakeFetch(200, message());
+    await new AnthropicProvider({
+      apiKey: "k",
+      model: "claude-opus-5-5",
+      fetch: opus.fn,
+      maxRetries: 0,
+    }).generateAnswer(input);
+    expect(opus.calls[0].body.model).toBe("claude-opus-5-5");
+    expect(opus.calls[0].body.output_config).toEqual({ effort: "low" });
+    expect(opus.calls[0].body.fallbacks).toBeUndefined();
   });
 
   it("maps API errors to LLMError", async () => {

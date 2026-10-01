@@ -2,7 +2,15 @@
 
 Assistant RAG pour PME : un administrateur alimente une base documentaire, un chatbot public répond **uniquement** à partir de ces documents et cite ses sources. S'il ne trouve pas l'information, il le dit au lieu d'inventer.
 
-**Démo** : https://docbot-production-e721.up.railway.app — chat public sur `/`, espace admin sur `/admin`, santé sur `/api/health`.
+## Accès en ligne
+
+| | Lien |
+|---|---|
+| 💬 **Chatbot (public)** | **[https://docbot-production-e721.up.railway.app](https://docbot-production-e721.up.railway.app)** |
+| 🔐 Espace admin (documents, historique) | [https://docbot-production-e721.up.railway.app/admin](https://docbot-production-e721.up.railway.app/admin) |
+| ❤️ État du service | [https://docbot-production-e721.up.railway.app/api/health](https://docbot-production-e721.up.railway.app/api/health) |
+
+Le chatbot répond à partir des documents ajoutés dans l'espace admin : sans document, il indique qu'il ne trouve pas l'information.
 
 Documents du projet : [SPEC.md](SPEC.md) (besoin reformulé, critères d'acceptation) · [CLAUDE.md](CLAUDE.md) (règles du projet) · [AI_WORKFLOW.md](AI_WORKFLOW.md) (journal du développement assisté par IA).
 
@@ -69,7 +77,7 @@ Admin ───► proxy.ts (cookie) ─► requireAdmin() ─► documents (dé
 | `LLM_PROVIDER` | Usage | Comportement |
 |---|---|---|
 | `mock` (défaut) | tests, CI, démo sans clé | Déterministe et hors ligne : répond avec les phrases des extraits qui couvrent la question, les cite, refuse sinon |
-| `anthropic` | production | Claude (`claude-opus-5-5` par défaut, `effort: low`), relance serveur sur un autre modèle en cas de refus, erreurs → message « service momentanément indisponible » |
+| `anthropic` | production | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) par défaut, modifiable avec `ANTHROPIC_MODEL` ; erreur ou refus du modèle → message « service momentanément indisponible » |
 
 Le code applicatif ne dépend que de l'interface [`LLMProvider`](src/lib/llm/provider.ts).
 
@@ -83,7 +91,7 @@ Le code applicatif ne dépend que de l'interface [`LLMProvider`](src/lib/llm/pro
 | `ADMIN_PASSWORD` | oui | Mot de passe de l'admin (≥ 12 caractères) |
 | `LLM_PROVIDER` | non | `mock` (défaut, aucune clé requise) ou `anthropic` |
 | `ANTHROPIC_API_KEY` | si `anthropic` | Clé API Claude |
-| `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-opus-5-5`) |
+| `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-haiku-4-5-20251001`) |
 | `PORT` | Railway | Port d'écoute ; doit correspondre au port cible du domaine public (voir Dépannage) |
 
 Générer un `SESSION_SECRET` :
@@ -98,8 +106,8 @@ Aucun secret n'est versionné : seul [.env.example](.env.example) est dans le d�
 
 | Commande | Contenu | Base |
 |---|---|---|
-| `npm test` | **Unitaires** (95) : découpage en chunks, validation des documents, extraction des termes de recherche, citations, pipeline de réponse (faux search / faux LLM), provider mock, provider Anthropic via un `fetch` factice, session, mots de passe, limiteur | non |
-| `npm run test:integration` | **Intégration** (15) : recherche full-text réelle (OU, racinisation, accents, classement, mots vides, opérateurs tsquery, cascade), persistance et historique des conversations — **vide les documents et conversations** | PostgreSQL migré |
+| `npm test` | **Unitaires** (97) : découpage en chunks, validation des documents, extraction des termes de recherche, citations, pipeline de réponse (faux search / faux LLM), provider mock, provider Anthropic via un `fetch` factice, session, mots de passe, limiteur | non |
+| `npm run test:integration` | **Intégration** (17) : recherche full-text réelle (OU, racinisation, accents, classement, mots vides, opérateurs tsquery, cascade), réponse de bout en bout recherche + provider mock (scénario « Quel est le délai de livraison ? »), persistance et historique des conversations — **vide les documents et conversations** | PostgreSQL migré |
 | `npm run test:e2e` | **Playwright** (4) : authentification, gestion des documents, **parcours complet de SPEC §5** (ajout d'un document → réponse sourcée → refus sans source → conversation retrouvée dans l'historique), validation de l'API | build + base seedée, `LLM_PROVIDER=mock` |
 
 Aucun test ne nécessite de clé API ni d'accès réseau externe.
@@ -139,7 +147,7 @@ tests/unit · tests/integration · e2e/
 - **checks** : PostgreSQL de service, migrations + contrôle de dérive schéma ↔ migrations, seed (deux fois, pour l'idempotence), lint, typecheck, tests unitaires, tests d'intégration, build, tests e2e Playwright ;
 - **docker** : `docker compose up` sur une base vierge, attente de `/api/health`, vérification que `/admin` redirige vers la connexion.
 
-Le développement s'est fait en 7 PR, chacune relue avant merge (revues publiées en commentaire des PR).
+Le développement s'est fait en 8 PR, chacune relue avant merge (revues publiées en commentaire des PR).
 
 ## Déploiement (Railway)
 
