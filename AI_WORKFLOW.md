@@ -39,5 +39,11 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Conflit de peer dependency `vitest@5` / `@types/node@20` → passage à `@types/node@24` (cohérent avec Node 24 utilisé partout).
 - `tsc --noEmit` seul échoue sur un checkout propre (types de routes Next générés) → script `typecheck` = `next typegen && tsc --noEmit`.
 
+**Revue critique avant merge**
+- CI rouge au premier passage (job Docker) : le client Prisma, généré dans `src/generated`, n'était pas recopié dans l'étape de build → `prisma generate` ajouté à l'étape `builder`. Bug attrapé par la CI, invisible en local.
+- Bloquant : l'image était *construite* mais jamais *démarrée* en CI → ajout d'un smoke test `docker compose up` + attente de `/api/health` (vérifie migrations + démarrage + accès DB, en non-root).
+- Bloquant : `npm` en PID 1 ne relaie pas SIGTERM (arrêts lents sur Railway) → `sh -c "migrate deploy && exec next start"`.
+- Mineurs acceptés : URL vide en fallback dans `prisma.config.ts` (nécessaire pour `generate` au build) ; image lourde ; `Conversation.updatedAt` à rafraîchir explicitement à l'ajout d'un message (PR 4).
+
 **Choix assumé**
 - Image Docker non « standalone » : elle garde `node_modules` pour pouvoir lancer `prisma migrate deploy` au démarrage. Image plus lourde, mais un seul chemin de démarrage, identique en local (compose) et sur Railway.
