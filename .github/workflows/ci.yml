@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://docbot:docbot@localhost:5432/docbot
+  LLM_PROVIDER: mock
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  checks:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: docbot
+          POSTGRES_PASSWORD: docbot
+          POSTGRES_DB: docbot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U docbot -d docbot"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+      - name: Check schema and migrations are in sync
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker stack smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start db + app with docker compose
+        run: docker compose up -d --build
+      - name: Wait for /api/health
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:3000/api/health; then exit 0; fi
+            sleep 3
+          done
+          echo "App did not become healthy"; exit 1
+      - name: Container logs
+        if: always()
+        run: docker compose logs app
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
