@@ -13,6 +13,7 @@ env:
   DATABASE_URL: postgresql://docbot:docbot@localhost:5432/docbot
   LLM_PROVIDER: mock
   NEXT_TELEMETRY_DISABLED: 1
+  ADMIN_EMAIL: admin@example.com
 
 jobs:
   checks:
@@ -36,11 +37,17 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Generate throwaway secrets (never stored in the repo)
+        run: |
+          echo "SESSION_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "ADMIN_PASSWORD=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
       - run: npm ci --no-audit --no-fund
       - name: Apply migrations
         run: npx prisma migrate deploy
       - name: Check schema and migrations are in sync
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+      - name: Seed (run twice to check idempotency)
+        run: npx prisma db seed && npx prisma db seed
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -51,6 +58,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Generate throwaway secrets (never stored in the repo)
+        run: |
+          echo "SESSION_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "ADMIN_PASSWORD=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
       - name: Start db + app with docker compose
         run: docker compose up -d --build
       - name: Wait for /api/health
@@ -60,6 +71,12 @@ jobs:
             sleep 3
           done
           echo "App did not become healthy"; exit 1
+      - name: Admin pages require a session
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" http://localhost:3000/admin)
+          echo "GET /admin -> $code"
+          [[ "$code" == 307*"/admin/login" ]]
+          curl -fsS -o /dev/null http://localhost:3000/admin/login
       - name: Container logs
         if: always()
         run: docker compose logs app

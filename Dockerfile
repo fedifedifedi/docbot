@@ -27,5 +27,6 @@ RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 COPY --from=builder --chown=nextjs:nodejs /app ./
 USER nextjs
 EXPOSE 3000
-# Apply migrations, then `exec` so Next.js becomes PID 1 and receives SIGTERM directly.
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && exec node_modules/.bin/next start"]
+# Apply migrations, seed the admin (idempotent, from ADMIN_EMAIL / ADMIN_PASSWORD),
+# then `exec` so Next.js becomes PID 1 and receives SIGTERM directly.
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/prisma db seed && exec node_modules/.bin/next start"]

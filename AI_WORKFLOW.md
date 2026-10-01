@@ -45,5 +45,19 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Bloquant : `npm` en PID 1 ne relaie pas SIGTERM (arrêts lents sur Railway) → `sh -c "migrate deploy && exec next start"`.
 - Mineurs acceptés : URL vide en fallback dans `prisma.config.ts` (nécessaire pour `generate` au build) ; image lourde ; `Conversation.updatedAt` à rafraîchir explicitement à l'ajout d'un message (PR 4).
 
-**Choix assumé**
+**Choix assumé (PR 1)**
 - Image Docker non « standalone » : elle garde `node_modules` pour pouvoir lancer `prisma migrate deploy` au démarrage. Image plus lourde, mais un seul chemin de démarrage, identique en local (compose) et sur Railway.
+
+### PR 2 — `feat/admin-auth` : authentification admin
+
+**IA**
+- Lecture préalable de la doc Next 16 embarquée : `middleware` est devenu `proxy.ts` (runtime Node), et le guide d'authentification recommande un contrôle *optimiste* dans le proxy (cookie seulement) + une vraie vérification côté serveur (Data Access Layer).
+- Session : JWT HS256 signé avec `jose`, cookie `httpOnly` / `sameSite=lax` / `secure` en prod, 8 h. Logique pure (`session-token.ts`) séparée des cookies (`session.ts`, `server-only`).
+- Défense en profondeur : `proxy.ts` redirige les visiteurs non connectés, **et** le layout du groupe `(protected)` appelle `requireAdmin()`.
+- Mots de passe : bcrypt (coût 12) ; comparaison avec un hash factice si l'email est inconnu (pas d'énumération de comptes par mesure du temps) ; message d'erreur unique.
+- Seed idempotent (`upsert`) lisant `ADMIN_EMAIL` / `ADMIN_PASSWORD` validés par zod (échec explicite si absents) ; exécuté au démarrage du conteneur.
+- Aucun identifiant dans le repo : `docker-compose.yml` exige les variables (`${VAR:?}`), la CI génère des secrets jetables avec `openssl rand`.
+- Tests unitaires : token (aller-retour, falsification, mauvais secret, expiration), hash, règles de redirection, validation des identifiants du seed, env.
+
+**Bug trouvé par les tests**
+- Un `ADMIN_EMAIL` entouré d'espaces était rejeté : la validation `z.email()` passait avant la normalisation → `trim().toLowerCase().pipe(z.email())`.
