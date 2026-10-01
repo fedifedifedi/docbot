@@ -4,7 +4,7 @@ Assistant RAG pour PME : un administrateur alimente une base documentaire, un ch
 
 > 🚧 Projet en cours de construction — voir [SPEC.md](SPEC.md) pour le périmètre et [AI_WORKFLOW.md](AI_WORKFLOW.md) pour le journal de développement.
 
-**Démo** : _URL Railway ajoutée après le premier déploiement._
+**Démo** : https://docbot-production-e721.up.railway.app (espace admin : `/admin`, santé : `/api/health`)
 
 ## Stack
 
@@ -75,9 +75,21 @@ Déploiement continu via l'intégration GitHub de Railway : chaque merge dans `m
    - `LLM_PROVIDER` = `mock`
    - `SESSION_SECRET` = une valeur aléatoire (voir ci-dessus)
    - `ADMIN_EMAIL` / `ADMIN_PASSWORD` = identifiants de l'admin
-4. **Settings → Networking → Generate Domain**.
+   - `PORT` = `3000` (doit correspondre au port cible du domaine public, voir Dépannage)
+4. **Settings → Networking → Generate Domain**, port cible `3000`.
 
 Au démarrage, le conteneur applique les migrations (`prisma migrate deploy`), exécute le seed de l'admin (idempotent) puis lance Next.js ; Railway vérifie la santé via `GET /api/health`.
+
+### Dépannage
+
+Une erreur **502 « Application failed to respond »** a deux causes possibles :
+
+| Symptôme | Cause | Correctif |
+|---|---|---|
+| Le déploiement est en échec ; les *Deploy Logs* montrent `Cannot seed admin: …` ou `Invalid environment: …` | Variable manquante ou invalide : le conteneur s'arrête au démarrage | Ajouter la variable (voir la liste ci-dessus) |
+| Le déploiement est **réussi** (healthcheck interne OK) mais le domaine public renvoie 502 | Le domaine public cible un port différent de celui où écoute Next.js (Railway injecte sa propre valeur de `PORT`, par ex. 8080, alors que le domaine pointe vers 3000) | Définir `PORT=3000` sur le service, ou aligner le *Target port* du domaine (Settings → Networking) sur le port affiché dans les logs (`- Local: http://localhost:XXXX`) |
+
+> Incident réel du premier déploiement : c'était le second cas, corrigé avec `PORT=3000`.
 
 ## CI
 

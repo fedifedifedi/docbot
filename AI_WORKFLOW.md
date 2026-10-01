@@ -88,3 +88,21 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Performance : la création imbriquée faisait un INSERT par chunk (~1 300 pour un fichier de 1 Mo) → `createMany` (un seul INSERT multi-lignes).
 - Robustesse : un texte collé > 3 Mo était coupé par la limite des Server Actions avant la validation → page d'erreur générique. `maxLength` côté client sur la zone de texte (constantes partagées dans `limits.ts` pour ne pas embarquer zod dans le bundle client).
 - Mineurs acceptés : le fichier l'emporte silencieusement sur le texte collé ; type de fichier contrôlé par extension + UTF-8 strict ; service couvert par l'e2e, l'infra de tests d'intégration arrive avec la recherche.
+
+### Incident — premier déploiement Railway (502)
+
+**Symptôme** : après connexion du repo à Railway, toutes les routes publiques renvoyaient 502 « Application failed to respond ».
+
+**Diagnostic (IA, sans accès aux logs Railway)**
+1. Première hypothèse : variables manquantes (`main` contenait déjà la PR 2, dont le seed exige `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `SESSION_SECRET`). Variables ajoutées → toujours 502 : hypothèse insuffisante.
+2. Lecture des *deployment statuses* que Railway publie sur GitHub (`gh api repos/…/deployments/…/statuses`) : le dernier déploiement était en **`success`**, donc le healthcheck interne `/api/health` passait. App saine + domaine public en 502 ⇒ **le domaine public ciblait un autre port que celui où écoute Next.js**.
+
+**Cause** : le domaine avait été généré vers le port 3000 (le `EXPOSE` du Dockerfile) alors que Railway injecte sa propre valeur de `PORT`, utilisée par `next start`.
+
+**Correctif (humain, dans Railway)** : variable `PORT=3000`. Le README (section Dépannage) documente les deux causes de 502 et leur correctif.
+
+**Vérification de la prod (IA)**
+- `/api/health` → `{"status":"ok","db":"ok"}` ; `/admin` et `/admin/documents` → 307 vers `/admin/login`.
+- Connexion testée **sans le mot de passe de prod** : Playwright pilote le navigateur Edge local (aucun téléchargement de navigateur, réseau instable) avec de mauvais identifiants → message d'erreur générique, POST 200 ; idem JavaScript désactivé (amélioration progressive OK). Ce test exerce la Server Action, la vérification d'origine, la lecture en base et bcrypt.
+- Fausse alerte écartée : une première tentative en `curl` (requête multipart reconstituée à la main) renvoyait 500 ; le même scénario dans un vrai navigateur, avec et sans JavaScript, fonctionne → la requête artisanale était malformée, pas l'application. Leçon : vérifier dans un vrai client avant de conclure à un bug.
+- La connexion **réussie** en prod nécessite le mot de passe admin, que l'IA n'a pas : vérification laissée à l'humain.
