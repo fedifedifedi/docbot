@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { answerQuestion, MAX_QUESTION_LENGTH } from "@/lib/chat/answer";
+import { clientKey, createRateLimiter } from "@/lib/chat/rate-limit";
 import { saveExchange } from "@/lib/chat/store";
 import { getLLMProvider } from "@/lib/llm";
 import { LLMError } from "@/lib/llm/provider";
@@ -16,12 +17,22 @@ const bodySchema = z.object({
   conversationId: z.string().max(64).nullish(),
 });
 
-function error(status: number, message: string) {
-  return Response.json({ error: message }, { status });
+function error(status: number, message: string, headers?: HeadersInit) {
+  return Response.json({ error: message }, { status, headers });
 }
+
+// Public endpoint that can spend LLM credits: cap requests per client.
+const rateLimit = createRateLimiter({ limit: 20, windowMs: 60_000 });
 
 /** Public chat endpoint (SPEC F5). */
 export async function POST(request: Request) {
+  const limited = rateLimit(clientKey(request.headers));
+  if (!limited.allowed) {
+    return error(429, "Trop de questions en peu de temps. Réessayez dans un instant.", {
+      "Retry-After": String(limited.retryAfterSeconds),
+    });
+  }
+
   let body: unknown;
   try {
     body = await request.json();

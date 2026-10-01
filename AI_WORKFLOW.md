@@ -106,3 +106,24 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Connexion testée **sans le mot de passe de prod** : Playwright pilote le navigateur Edge local (aucun téléchargement de navigateur, réseau instable) avec de mauvais identifiants → message d'erreur générique, POST 200 ; idem JavaScript désactivé (amélioration progressive OK). Ce test exerce la Server Action, la vérification d'origine, la lecture en base et bcrypt.
 - Fausse alerte écartée : une première tentative en `curl` (requête multipart reconstituée à la main) renvoyait 500 ; le même scénario dans un vrai navigateur, avec et sans JavaScript, fonctionne → la requête artisanale était malformée, pas l'application. Leçon : vérifier dans un vrai client avant de conclure à un bug.
 - La connexion **réussie** en prod nécessite le mot de passe admin, que l'IA n'a pas : vérification laissée à l'humain.
+
+### PR 5 — `feat/search-chat` : recherche full-text, providers LLM, chat public
+
+**IA**
+- Lecture préalable de la référence API Claude (skill `claude-api`) avant d'écrire le provider : modèle `claude-opus-5-5` (sa réflexion ne se désactive pas, on la règle avec `effort: low` pour un chat), `fallbacks: "default"` (relance serveur en cas de refus), gestion de `stop_reason: "refusal"`, erreurs typées de la SDK.
+- Recherche : configuration PostgreSQL `docbot_fr` (racinisation française + `unaccent`), colonne `tsvector` **générée** (toujours synchronisée), index GIN. Chaque mot passe par `plainto_tsquery` et les mots sont combinés en **OU** ; classement `ts_rank_cd`, top 5. Les mots de la question sont réduits à lettres/chiffres avant d'atteindre SQL (aucune syntaxe tsquery injectable), et la requête reste paramétrée.
+- Garde-fous anti-invention en couches : (1) aucun chunk → refus **sans appel au LLM** ; (2) prompt strict (extraits numérotés et balisés, citations `[n]`, phrase de refus exacte, extraits traités comme des données) ; (3) réponse « non trouvée » → aucune source affichée.
+- Provider `mock` déterministe : extrait les phrases des chunks, les cite, et refuse si les mots-clés de la question ne sont pas assez couverts — il se comporte comme un LLM prudent, ce qui rend l'e2e du refus significatif.
+- Provider Anthropic testé **sans clé ni réseau** grâce à un `fetch` factice injecté dans la SDK (requête envoyée, absence de `fallbacks` sur les modèles qui ne les acceptent pas, erreurs, refus).
+- Pipeline testé avec un faux search et un faux LLM (le LLM n'est pas appelé quand rien ne correspond).
+- Nouvelle couche de **tests d'intégration** contre PostgreSQL en CI, et e2e du parcours SPEC §5 (étapes 1 à 5).
+
+**Bugs trouvés par la CI (invisibles en local, faute de Postgres)**
+- Contrôle de dérive : Prisma voit la colonne générée comme un `DEFAULT dbgenerated(...)` → expression déclarée dans le schéma.
+- La liste de mots vides français de PostgreSQL **ne contient pas « les »** : la question « le la les de du ? » trouvait un document. Ajout d'une petite liste côté application (« les », interrogatifs, formules de politesse), testée.
+- Dans une transaction, `CURRENT_TIMESTAMP` est figé : la question et la réponse avaient le même `createdAt`, donc un ordre indéterminé (l'historique admin aurait pu afficher la réponse avant la question). Horodatages explicites.
+
+**Revue critique avant merge**
+- Bloquant : `/api/chat` est public et peut consommer des crédits LLM → limiteur en mémoire, 20 requêtes/minute par client (une seule instance sur Railway).
+- En relisant ce correctif : la première version identifiait le client par la *première* adresse de `X-Forwarded-For`, que le client peut forger. Corrigé : `X-Real-IP`, puis la *dernière* adresse (celle ajoutée par le proxy), avec un test dédié.
+- Mineurs acceptés : appel Anthropic jusqu'à ~3 min dans le pire cas (timeout 60 s, 2 retries) ; conversation perdue au rechargement de la page ; recherche sur la seule question courante (pas de reformulation à partir de l'historique) ; en production sans clé, le provider `mock` répond par extraction de phrases.

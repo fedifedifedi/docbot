@@ -34,6 +34,16 @@ npx prisma db seed     # crée l'admin depuis ADMIN_EMAIL / ADMIN_PASSWORD
 npm run dev
 ```
 
+## Fonctionnement
+
+1. **Indexation** : un document ajouté par l'admin est découpé en chunks (~800 caractères, par paragraphes et sections Markdown). PostgreSQL calcule pour chaque chunk un `tsvector` (racinisation française, accents ignorés), indexé en GIN.
+2. **Recherche** : les mots de la question (hors mots vides) sont combinés en OU, les chunks classés par `ts_rank_cd` ; les 5 meilleurs sont retenus.
+3. **Garde-fou** : si aucun chunk ne correspond, DocBot répond « Je ne trouve pas cette information dans la documentation. » **sans appeler le LLM**.
+4. **Génération** : sinon, le LLM reçoit les extraits numérotés et doit répondre uniquement à partir d'eux, en citant `[n]` ; s'ils ne suffisent pas, il renvoie la phrase de refus (et aucune source n'est affichée).
+5. **Historique** : chaque échange est enregistré avec un instantané des sources citées.
+
+Le LLM est choisi par `LLM_PROVIDER` : `mock` (défaut, déterministe, sans clé : répond en citant les phrases pertinentes des extraits) ou `anthropic` (Claude). Le chat public est limité à 20 questions par minute et par client.
+
 ## Variables d'environnement
 
 | Variable | Obligatoire | Description |
