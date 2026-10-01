@@ -61,3 +61,11 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 
 **Bug trouvé par les tests**
 - Un `ADMIN_EMAIL` entouré d'espaces était rejeté : la validation `z.email()` passait avant la normalisation → `trim().toLowerCase().pipe(z.email())`.
+
+**Revue critique avant merge**
+- Bloquant : le parcours de connexion n'avait jamais été exécuté (pas de Postgres local) → **test Playwright login/logout ajouté dès cette PR** (infra e2e avancée), exécuté en CI contre un build de prod, une base migrée et seedée.
+- Bloquant : `requireAdmin()` faisait confiance au seul jeton → vérifie aussi que le compte existe encore.
+- Bug trouvé par la CI (smoke Docker) : `prisma db seed` lance `tsx`, absent du `PATH` hors npm → `node_modules/.bin` ajouté au `PATH` de l'image.
+- Bug trouvé par l'e2e : après un échec de connexion, React 19 réinitialise le formulaire et **vide le champ email** ; la seconde tentative n'était même pas soumise (`required`). Diagnostic fait en téléchargeant la trace Playwright de la CI. Correctif : l'action renvoie l'email, réinjecté en `defaultValue` ; l'e2e vérifie désormais ce comportement.
+- Faux positif corrigé dans le test : Next.js rend son propre `role="alert"` (annonceur de route) → sélecteur filtré par texte.
+- Mineurs acceptés : pas de limitation de tentatives de connexion (hors périmètre v1, bcrypt coût 12 ralentit le brute force) ; session JWT non révocable avant expiration (8 h) hors suppression du compte ; cookie `secure` en prod — Safari peut le refuser sur `http://localhost` en Docker local (Chrome/Firefox OK).
