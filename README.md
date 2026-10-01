@@ -43,6 +43,8 @@ npm run dev
 | `ADMIN_EMAIL` | oui | Email de l'admin créé par le seed |
 | `ADMIN_PASSWORD` | oui | Mot de passe de l'admin (≥ 12 caractères) |
 | `LLM_PROVIDER` | non | `mock` (défaut, aucune clé requise) ou `anthropic` |
+| `ANTHROPIC_API_KEY` | si `anthropic` | Clé API Claude |
+| `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-opus-5-5`) |
 
 Générer un `SESSION_SECRET` :
 
@@ -59,7 +61,9 @@ Aucun secret n'est versionné : seul [.env.example](.env.example) est dans le d�
 | `npm run dev` | Serveur de développement |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Génération des types de routes + `tsc --noEmit` |
-| `npm test` | Tests unitaires (Vitest) |
+| `npm test` | Tests unitaires (Vitest, sans base) |
+| `npm run test:integration` | Tests d'intégration contre PostgreSQL (`DATABASE_URL` migrée ; **vide les documents et conversations**) |
+| `npm run test:e2e` | Tests Playwright (après `npm run build`, base migrée et seedée, `LLM_PROVIDER=mock`) |
 | `npm run build` | Build de production |
 | `npm run db:migrate` | Créer une migration (dev) |
 | `npm run db:deploy` | Appliquer les migrations |
