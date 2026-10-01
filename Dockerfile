@@ -14,7 +14,8 @@ RUN npm ci --no-audit --no-fund
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# The generated client lives in src/generated (outside node_modules), so regenerate it here.
+RUN npx prisma generate && npm run build
 
 # --- runtime
 # Keeps node_modules (incl. the Prisma CLI) so migrations run at startup.
