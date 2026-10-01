@@ -2,6 +2,10 @@
 
 Assistant RAG pour PME : admin qui gère des documents, chatbot public qui répond uniquement à partir de ces documents en citant ses sources. Spécification : [SPEC.md](SPEC.md).
 
+@AGENTS.md
+
+> Next.js **16** et Prisma **7** : lire la doc embarquée (`node_modules/next/dist/docs/`) avant d'utiliser une API Next. Points déjà relevés : `middleware` → `proxy.ts` ; `cookies()`, `headers()`, `params`, `searchParams` sont **asynchrones** ; Prisma 7 = `prisma.config.ts` + client généré dans `src/generated/prisma` + driver adapter `@prisma/adapter-pg`.
+
 ## Stack
 
 - Next.js (App Router, TypeScript strict, Server Actions + Route Handlers)
@@ -40,12 +44,13 @@ docker compose up -d db          # base seule (dev)
 docker compose up --build        # base + app
 npm run dev                      # app en dev (http://localhost:3000)
 npm run lint                     # ESLint
-npm run typecheck                # tsc --noEmit
+npm run typecheck                # next typegen + tsc --noEmit
 npm test                         # Vitest unitaires
 npm run test:integration         # Vitest contre Postgres (DATABASE_URL de test)
 npm run test:e2e                 # Playwright (LLM_PROVIDER=mock)
 npm run build                    # build de prod
-npx prisma migrate dev           # nouvelle migration
+npm run db:migrate               # prisma migrate dev (nouvelle migration)
+npm run db:deploy                # prisma migrate deploy
 npx prisma db seed               # crée l'admin depuis ADMIN_EMAIL / ADMIN_PASSWORD
 ```
 

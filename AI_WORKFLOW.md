@@ -24,3 +24,20 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Railway via intégration GitHub, et **Dockerfile + premier déploiement avancés en PR 1** (version en ligne dès le début).
 - Seed admin uniquement depuis `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 - AI_WORKFLOW.md tenu à jour à chaque PR ; revue critique avant chaque merge.
+
+### PR 1 — `chore/setup` : socle, CI, Docker, Railway
+
+**IA**
+- Génération du squelette avec `create-next-app` (dans un dossier temporaire, puis copie) → Next.js **16.3** et Tailwind 4. Le fichier `AGENTS.md` livré par Next 16 avertit de changements cassants : lecture de la doc embarquée (`node_modules/next/dist/docs/`) avant d'écrire du code, et notes reportées dans CLAUDE.md (`middleware` → `proxy`, API de requête asynchrones).
+- Prisma **7** (nouvelle config `prisma.config.ts`, client généré dans `src/generated`, driver adapter `pg`) ; modèle de données complet (`users`, `documents`, `chunks`, `conversations`, `messages`) et migration initiale.
+- Validation de l'environnement avec zod (`src/lib/env.ts`, lue paresseusement pour que le build ne dépende pas des variables runtime) + tests unitaires.
+- Route `/api/health` (vérifie la base) pour le healthcheck Railway.
+- Dockerfile multi-étapes, docker-compose (db + app), `railway.json`, CI GitHub Actions (migrations + contrôle de synchronisation schéma/migrations, lint, typecheck, test, build, build Docker).
+
+**Problèmes rencontrés et contournements**
+- Réseau local instable (clé Wi-Fi USB) : les gros téléchargements TLS échouaient (`ERR_SSL_CIPHER_OPERATION_FAILED`, `bad record MAC`) pour npm, curl et Docker. Contournement npm : script de téléchargement avec retries + vérification d'intégrité, injecté dans le cache npm. Docker : impossible de récupérer l'image Postgres localement → migration initiale générée hors ligne (`prisma migrate diff --from-empty`) et **validée par la CI** contre un vrai Postgres (application + contrôle de dérive).
+- Conflit de peer dependency `vitest@5` / `@types/node@20` → passage à `@types/node@24` (cohérent avec Node 24 utilisé partout).
+- `tsc --noEmit` seul échoue sur un checkout propre (types de routes Next générés) → script `typecheck` = `next typegen && tsc --noEmit`.
+
+**Choix assumé**
+- Image Docker non « standalone » : elle garde `node_modules` pour pouvoir lancer `prisma migrate deploy` au démarrage. Image plus lourde, mais un seul chemin de démarrage, identique en local (compose) et sur Railway.
