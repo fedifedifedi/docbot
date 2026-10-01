@@ -12,7 +12,9 @@ describe("parseEnv", () => {
   });
 
   it("accepts the anthropic provider", () => {
-    expect(parseEnv({ ...base, LLM_PROVIDER: "anthropic" }).LLM_PROVIDER).toBe("anthropic");
+    expect(
+      parseEnv({ ...base, LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "sk-test" }).LLM_PROVIDER,
+    ).toBe("anthropic");
   });
 
   it("rejects an unknown provider", () => {
@@ -22,6 +24,18 @@ describe("parseEnv", () => {
   it("rejects a missing or non-postgres DATABASE_URL", () => {
     expect(() => parseEnv({ ...base, DATABASE_URL: undefined })).toThrow(/DATABASE_URL/);
     expect(() => parseEnv({ ...base, DATABASE_URL: "mysql://x" })).toThrow(/DATABASE_URL/);
+  });
+
+  it("requires ANTHROPIC_API_KEY only with the anthropic provider", () => {
+    expect(() => parseEnv({ ...base, LLM_PROVIDER: "anthropic" })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() =>
+      parseEnv({ ...base, LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "" }),
+    ).toThrow(/ANTHROPIC_API_KEY/);
+    expect(parseEnv({ ...base, LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "sk-test" })).toMatchObject({
+      ANTHROPIC_API_KEY: "sk-test",
+      ANTHROPIC_MODEL: "claude-opus-5-5",
+    });
+    expect(parseEnv({ ...base, ANTHROPIC_API_KEY: "" }).ANTHROPIC_API_KEY).toBeUndefined();
   });
 
   it("requires a SESSION_SECRET of at least 32 characters", () => {

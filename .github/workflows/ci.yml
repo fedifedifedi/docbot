@@ -51,6 +51,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Integration tests (PostgreSQL full-text search, persistence)
+        run: npm run test:integration
       - run: npm run build
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium

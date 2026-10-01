@@ -34,6 +34,16 @@ npx prisma db seed     # crée l'admin depuis ADMIN_EMAIL / ADMIN_PASSWORD
 npm run dev
 ```
 
+## Fonctionnement
+
+1. **Indexation** : un document ajouté par l'admin est découpé en chunks (~800 caractères, par paragraphes et sections Markdown). PostgreSQL calcule pour chaque chunk un `tsvector` (racinisation française, accents ignorés), indexé en GIN.
+2. **Recherche** : les mots de la question (hors mots vides) sont combinés en OU, les chunks classés par `ts_rank_cd` ; les 5 meilleurs sont retenus.
+3. **Garde-fou** : si aucun chunk ne correspond, DocBot répond « Je ne trouve pas cette information dans la documentation. » **sans appeler le LLM**.
+4. **Génération** : sinon, le LLM reçoit les extraits numérotés et doit répondre uniquement à partir d'eux, en citant `[n]` ; s'ils ne suffisent pas, il renvoie la phrase de refus (et aucune source n'est affichée).
+5. **Historique** : chaque échange est enregistré avec un instantané des sources citées.
+
+Le LLM est choisi par `LLM_PROVIDER` : `mock` (défaut, déterministe, sans clé : répond en citant les phrases pertinentes des extraits) ou `anthropic` (Claude). Le chat public est limité à 20 questions par minute et par client.
+
 ## Variables d'environnement
 
 | Variable | Obligatoire | Description |
@@ -43,6 +53,8 @@ npm run dev
 | `ADMIN_EMAIL` | oui | Email de l'admin créé par le seed |
 | `ADMIN_PASSWORD` | oui | Mot de passe de l'admin (≥ 12 caractères) |
 | `LLM_PROVIDER` | non | `mock` (défaut, aucune clé requise) ou `anthropic` |
+| `ANTHROPIC_API_KEY` | si `anthropic` | Clé API Claude |
+| `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-opus-5-5`) |
 
 Générer un `SESSION_SECRET` :
 
@@ -59,7 +71,9 @@ Aucun secret n'est versionné : seul [.env.example](.env.example) est dans le d�
 | `npm run dev` | Serveur de développement |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Génération des types de routes + `tsc --noEmit` |
-| `npm test` | Tests unitaires (Vitest) |
+| `npm test` | Tests unitaires (Vitest, sans base) |
+| `npm run test:integration` | Tests d'intégration contre PostgreSQL (`DATABASE_URL` migrée ; **vide les documents et conversations**) |
+| `npm run test:e2e` | Tests Playwright (après `npm run build`, base migrée et seedée, `LLM_PROVIDER=mock`) |
 | `npm run build` | Build de production |
 | `npm run db:migrate` | Créer une migration (dev) |
 | `npm run db:deploy` | Appliquer les migrations |
