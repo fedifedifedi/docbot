@@ -18,7 +18,10 @@ test("admin pages are protected, login and logout work", async ({ page }) => {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Mot de passe").fill("definitely-not-the-password");
   await page.getByRole("button", { name: "Se connecter" }).click();
-  await expect(page.getByRole("alert")).toHaveText("Email ou mot de passe incorrect.");
+  // (Next.js renders its own role="alert" route announcer, hence the text filter.)
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Email ou mot de passe incorrect." }),
+  ).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/login$/);
 
   // Right credentials: dashboard.
