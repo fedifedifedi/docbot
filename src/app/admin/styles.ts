@@ -1,7 +1,14 @@
 /** Shared Tailwind classes of the admin UI (warm palette, same as the public chat). */
 
 export const card =
-  "rounded-3xl border border-cream-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900";
+  "rounded-3xl border border-cream-200 bg-white/85 shadow-lg shadow-stone-900/5 backdrop-blur dark:border-stone-800 dark:bg-stone-900/85";
+
+/** Cards that are links: lift on hover. */
+export const liftCard =
+  "transition duration-300 hover:-translate-y-1 hover:border-sage-300 hover:shadow-xl hover:shadow-sage-900/10 dark:hover:border-sage-700";
+
+export const pageTitle =
+  "font-display text-3xl font-semibold tracking-tight text-stone-900 dark:text-cream-50";
 
 export const label = "flex flex-col gap-1.5 text-sm font-medium text-stone-700 dark:text-stone-200";
 
@@ -9,7 +16,7 @@ export const field =
   "rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 font-normal text-stone-800 placeholder:text-stone-400 transition focus:border-sage-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sage-200/60 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-sage-600 dark:focus:bg-stone-950 dark:focus:ring-sage-900/60";
 
 export const primaryButton =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-sage-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sage-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-sage-500";
+  "inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-sage-600 to-sage-700 px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-sage-900/20 transition hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0";
 
 export const alertBox =
   "flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300";
@@ -31,6 +38,6 @@ export const table = {
   table: "w-full text-left text-sm",
   head: "border-b border-cream-200 bg-cream-100/60 text-xs uppercase tracking-wide text-stone-500 dark:border-stone-800 dark:bg-stone-950/50 dark:text-stone-400",
   th: "px-4 py-3 font-medium",
-  row: "border-b border-cream-100 transition last:border-0 hover:bg-cream-50 dark:border-stone-800 dark:hover:bg-stone-950/40",
+  row: "border-b border-cream-100 transition last:border-0 hover:bg-sage-50/60 dark:border-stone-800 dark:hover:bg-stone-950/40",
   td: "px-4 py-3",
 };

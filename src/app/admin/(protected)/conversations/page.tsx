@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { listConversations } from "@/lib/chat/history";
 import { ArrowLeftIcon, ArrowRightIcon, ChatIcon } from "../../../icons";
-import { card, pill, table } from "../../styles";
+import { card, pageTitle, pill, table } from "../../styles";
 import { formatDate } from "../format";
 
 export const metadata: Metadata = { title: "Conversations — DocBot admin" };
@@ -24,7 +24,7 @@ export default async function ConversationsPage({ searchParams }: PageProps<"/ad
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-stone-900 dark:text-cream-50">
+        <h1 className={`${pageTitle} flex items-center gap-2`}>
           Conversations
           <span className={pill}>{total}</span>
         </h1>

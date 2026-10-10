@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { listDocuments } from "@/lib/documents/service";
 import { DocumentIcon } from "../../../icons";
-import { card, pill, table } from "../../styles";
+import { card, pageTitle, pill, table } from "../../styles";
 import { AddDocumentForm } from "./add-document-form";
 import { DeleteDocumentButton } from "./delete-document-button";
 import { formatDate, sourceLabel } from "../format";
@@ -17,21 +17,21 @@ export default async function DocumentsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-cream-50">Documents</h1>
+        <h1 className={pageTitle}>Documents</h1>
         <p className="text-stone-500 dark:text-stone-400">
           Le chatbot répond uniquement à partir de ces textes, découpés en chunks pour la recherche.
         </p>
       </div>
 
       <section aria-labelledby="add-document" className={`${card} flex flex-col gap-4 p-5 sm:p-6`}>
-        <h2 id="add-document" className="font-semibold text-stone-900 dark:text-cream-50">
+        <h2 id="add-document" className="font-display text-lg font-semibold text-stone-900 dark:text-cream-50">
           Ajouter un document
         </h2>
         <AddDocumentForm />
       </section>
 
       <section aria-labelledby="document-list" className="flex flex-col gap-3">
-        <h2 id="document-list" className="flex items-center gap-2 font-semibold text-stone-900 dark:text-cream-50">
+        <h2 id="document-list" className="flex items-center gap-2 font-display text-lg font-semibold text-stone-900 dark:text-cream-50">
           Base documentaire
           <span className={pill}>{documents.length}</span>
         </h2>

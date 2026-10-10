@@ -135,9 +135,10 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center bg-sage-600 text-white shadow-md shadow-sage-900/10 ${box}`}
+      className={`relative flex shrink-0 items-center justify-center bg-gradient-to-br from-sage-500 to-sage-700 text-white shadow-lg shadow-sage-900/20 ${box}`}
     >
       <BookIcon className={icon} />
+      <span className="absolute -top-0.5 -right-0.5 size-[28%] rounded-full bg-clay-400 ring-2 ring-cream-50 dark:ring-stone-950" />
     </span>
   );
 }

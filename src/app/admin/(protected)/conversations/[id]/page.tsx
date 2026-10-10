@@ -6,7 +6,7 @@ import { getConversation } from "@/lib/chat/history";
 import { cleanExcerpt } from "@/lib/chat/segments";
 import { AnswerText, CitationBadge } from "../../../../citations";
 import { ArrowLeftIcon } from "../../../../icons";
-import { backLink, pill } from "../../../styles";
+import { backLink, pageTitle, pill } from "../../../styles";
 import { formatDate } from "../../format";
 
 export const metadata: Metadata = { title: "Conversation — DocBot admin" };
@@ -24,7 +24,7 @@ export default async function ConversationPage({ params }: PageProps<"/admin/con
         Conversations
       </Link>
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-cream-50">Conversation</h1>
+        <h1 className={pageTitle}>Conversation</h1>
         <p className="flex flex-wrap gap-2">
           <span className={pill}>Commencée le {formatDate(conversation.createdAt)}</span>
           <span className={pill}>{conversation.messages.length} messages</span>
@@ -36,7 +36,7 @@ export default async function ConversationPage({ params }: PageProps<"/admin/con
             <li
               key={message.id}
               aria-label="Question du visiteur"
-              className="flex max-w-[85%] flex-col gap-1 self-end rounded-3xl rounded-br-md bg-sage-600 px-4 py-3 text-white shadow-sm"
+              className="flex max-w-[85%] flex-col gap-1 self-end rounded-3xl rounded-br-md bg-gradient-to-br from-sage-600 to-sage-700 px-4 py-3 text-white shadow-md shadow-sage-900/15"
             >
               <p className="text-xs text-sage-100">Visiteur · {formatDate(message.createdAt)}</p>
               <p className="whitespace-pre-wrap">{message.content}</p>
@@ -45,7 +45,7 @@ export default async function ConversationPage({ params }: PageProps<"/admin/con
             <li
               key={message.id}
               aria-label="Réponse de DocBot"
-              className="flex max-w-[92%] flex-col gap-2 rounded-3xl rounded-tl-md border border-cream-200 bg-white px-4 py-3 shadow-sm dark:border-stone-800 dark:bg-stone-900"
+              className="flex max-w-[92%] flex-col gap-2 rounded-3xl rounded-tl-md border border-cream-200 bg-white/90 px-4 py-3 shadow-lg shadow-stone-900/5 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90"
             >
               <p className="text-xs text-stone-500 dark:text-stone-400">DocBot · {formatDate(message.createdAt)}</p>
               <AnswerText text={message.content} className="text-stone-800 dark:text-stone-100" />
@@ -62,7 +62,7 @@ export default async function ConversationPage({ params }: PageProps<"/admin/con
                       <p className="flex items-center gap-1 font-medium text-stone-800 dark:text-stone-100">
                         <CitationBadge refNumber={source.ref} /> {source.documentTitle}
                       </p>
-                      <p className="mt-1 border-l-2 border-sage-300 pl-3 leading-relaxed text-stone-600 dark:border-sage-700 dark:text-stone-400">
+                      <p className="mt-1 border-l-2 border-clay-300 pl-3 leading-relaxed text-stone-600 dark:border-sage-700 dark:text-stone-400">
                         {cleanExcerpt(source.excerpt)}
                       </p>
                     </li>

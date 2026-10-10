@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
+import { Backdrop } from "../../backdrop";
 import { ChatIcon, DocumentIcon, ExternalIcon, Logo, LogoutIcon } from "../../icons";
 import { logout } from "./actions";
 import { NavLink } from "./nav-link";
@@ -9,12 +10,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex flex-1 flex-col">
+      <Backdrop subtle />
       <header className="sticky top-0 z-10 border-b border-cream-200 bg-cream-50/85 backdrop-blur dark:border-stone-800 dark:bg-stone-950/85">
         <nav className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 text-sm">
           <Link href="/admin" className="mr-3 flex shrink-0 items-center gap-2 font-semibold text-stone-900 dark:text-cream-50">
             <Logo size="sm" />
-            <span>
-              DocBot <span className="font-normal text-stone-500 dark:text-stone-400">admin</span>
+            <span className="font-display text-base">
+              DocBot <span className="font-sans text-sm font-normal text-stone-500 dark:text-stone-400">admin</span>
             </span>
           </Link>
           {/* On phones: logo and actions on the first line, sections on the second. */}

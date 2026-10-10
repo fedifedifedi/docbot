@@ -209,3 +209,12 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Captures Playwright de chaque page (clair / sombre, bureau / mobile) et mesure automatique du débordement horizontal à 390 px. Défauts trouvés et corrigés : la page Documents faisait 430 px de large (libellé `sr-only` en position absolue qui sortait du conteneur défilant du tableau → `relative`) ; en-tête admin sur trois lignes sur mobile → deux lignes, déconnexion en icône (libellé conservé pour les lecteurs d'écran).
 - Fausse alerte écartée : avertissement d'hydratation `caret-color` causé par Playwright lui-même (masquage du curseur pendant les captures), pas par l'application.
 - **e2e exécutés en local pour la première fois** (4/4), avec Edge via une configuration temporaire (navigateur Playwright non téléchargeable) ; lint, typecheck, unitaires (103) et build passent.
+
+**Deuxième demande de l'humain : un design « plus dynamique et original »** (même PR)
+- Identité : police de titres Fraunces (serif chaleureuse) ; second accent terre cuite (`clay`) ; logo en dégradé avec pastille.
+- Fond vivant : taches de couleur floues qui dérivent lentement + grain papier (`src/app/backdrop.tsx`), atténué dans l'admin.
+- Chat : accueil remplacé par un grand titre « Vos documents ont *réponse* à tout. » avec un trait dessiné à l'apparition, engagements, exemples qui apparaissent en cascade ; l'accueil s'efface dès la première question. Messages et sources qui glissent à l'apparition, bouton d'envoi animé.
+- Admin : fondu à chaque navigation (`template.tsx`, re-monté à chaque page contrairement au layout), compteurs du tableau de bord qui défilent (`CountUp`), cartes qui se soulèvent au survol, chunks en cascade.
+- Accessibilité : toutes les animations sont coupées avec `prefers-reduced-motion` (règle globale) ; `CountUp` affiche directement la valeur finale dans ce cas, et le HTML serveur contient déjà la bonne valeur.
+- Défaut trouvé sur les captures : le dégradé derrière la zone de saisie formait un rectangle de la largeur de la colonne sur le fond animé → étendu à tout l'écran, avec `overflow-x: clip` sur `body` (pas `hidden`, qui casserait le `sticky`) ; largeur vérifiée à 390 px sur toutes les pages.
+- lint, typecheck, unitaires (103), build et e2e (4/4, en local) passent.
