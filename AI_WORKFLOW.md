@@ -180,3 +180,41 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Valeur par défaut alignée partout (env, `.env.example`, docker-compose, README).
 - Scénario « Livraison » signalé par l'humain reproduit en **test d'intégration** (vraie recherche PostgreSQL + provider mock, comme l'API en production sans clé) : « Quel est le délai de livraison ? » → réponse sourcée ; sans document correspondant → refus sans source. Un cas supplémentaire écrit d'abord a été retiré en relecture : il aurait validé une réponse hors sujet du mock (« les délais peuvent varier… » au lieu de « 48 heures »).
 - Description et site du dépôt GitHub renseignés via `gh repo edit`.
+
+### PR 9 — `feat/chat-design` : refonte visuelle du chat public
+
+**Décisions humaines** : périmètre limité au chat public (l'espace admin viendra ensuite), style « chaleureux » (crème et vert sauge) choisi parmi trois propositions de l'IA.
+
+**IA**
+- Palettes `sage` et `cream` déclarées dans le thème Tailwind 4 (`@theme` dans `globals.css`), mode sombre via `dark:`.
+- Chat : en-tête avec logo, état vide avec exemples de questions cliquables (envoi direct), bulles de questions, réponses en cartes avec avatar, réponse « non trouvée » visuellement distincte, indicateur de saisie animé (désactivé avec `prefers-reduced-motion`), zone de saisie en pilule avec compteur près de la limite, focus rendu au champ après chaque réponse.
+- Citations `[n]` affichées en pastilles ; les crochets restent dans le texte (masqués visuellement) pour les lecteurs d'écran, le copier-coller et les sélecteurs de l'e2e. Découpage dans une fonction pure `splitCitations()` (`src/lib/chat/segments.ts`, sans import serveur pour rester dans le bundle client) + tests unitaires.
+- Sources en cartes repliables (`<details>`), numéro + titre + extrait.
+- Libellés et noms accessibles utilisés par l'e2e conservés (« Votre question », « Envoyer », « Réponse de DocBot », liste « Sources »).
+- Correctif au passage : `globals.css` imposait Arial au lieu de la police Geist chargée par le layout (effet visible aussi sur l'admin).
+
+**Vérification du résultat**
+- Captures Playwright (Edge local, `/api/chat` simulé, pas de base locale) en clair / sombre, bureau / mobile : état vide, chargement, réponse sourcée, refus.
+- Défaut trouvé sur les captures : en sombre, texte blanc sur `sage-500` sous le seuil de contraste AA (~4,4:1) → `sage-600` (~6:1) dans les deux modes.
+- lint, typecheck, tests unitaires (101) et build passent en local ; e2e exécutés par la CI.
+
+**Extension demandée par l'humain : refonte de tout le design** (même PR)
+- Fond crème sur tout le site ; éléments partagés : icônes (`src/app/icons.tsx`), pastilles de citation (`src/app/citations.tsx`), classes de l'admin (`src/app/admin/styles.ts`).
+- Admin : en-tête avec logo et section active surlignée, connexion en carte, tableau de bord avec compteurs (documents, chunks, conversations — fonctions de service existantes), formulaire d'ajout et tableaux en cartes, détail d'un document avec ses chunks en cartes, détail d'une conversation affiché comme un fil de discussion.
+- Extraits de sources : marqueurs de titre Markdown retirés à l'affichage (`cleanExcerpt()`, testée ; la donnée stockée est inchangée) — remplace le « mineur accepté » ci-dessus.
+- Bug existant corrigé : texte mal encodé en production depuis la PR 6 (`AjoutÃ© le`, `â† Documents`, `Â·`) sur la liste et le détail des documents.
+
+**Vérification du résultat**
+- Environnement local monté pendant la PR : PostgreSQL Windows déjà installé (Docker toujours impossible : `bad record MAC`), rôle et base créés par un script que l'humain a lancé avec le mot de passe `postgres` (que l'IA n'a pas) ; premier essai en échec à cause du BOM ajouté par Windows PowerShell au fichier SQL, corrigé.
+- Captures Playwright de chaque page (clair / sombre, bureau / mobile) et mesure automatique du débordement horizontal à 390 px. Défauts trouvés et corrigés : la page Documents faisait 430 px de large (libellé `sr-only` en position absolue qui sortait du conteneur défilant du tableau → `relative`) ; en-tête admin sur trois lignes sur mobile → deux lignes, déconnexion en icône (libellé conservé pour les lecteurs d'écran).
+- Fausse alerte écartée : avertissement d'hydratation `caret-color` causé par Playwright lui-même (masquage du curseur pendant les captures), pas par l'application.
+- **e2e exécutés en local pour la première fois** (4/4), avec Edge via une configuration temporaire (navigateur Playwright non téléchargeable) ; lint, typecheck, unitaires (103) et build passent.
+
+**Deuxième demande de l'humain : un design « plus dynamique et original »** (même PR)
+- Identité : police de titres Fraunces (serif chaleureuse) ; second accent terre cuite (`clay`) ; logo en dégradé avec pastille.
+- Fond vivant : taches de couleur floues qui dérivent lentement + grain papier (`src/app/backdrop.tsx`), atténué dans l'admin.
+- Chat : accueil remplacé par un grand titre « Vos documents ont *réponse* à tout. » avec un trait dessiné à l'apparition, engagements, exemples qui apparaissent en cascade ; l'accueil s'efface dès la première question. Messages et sources qui glissent à l'apparition, bouton d'envoi animé.
+- Admin : fondu à chaque navigation (`template.tsx`, re-monté à chaque page contrairement au layout), compteurs du tableau de bord qui défilent (`CountUp`), cartes qui se soulèvent au survol, chunks en cascade.
+- Accessibilité : toutes les animations sont coupées avec `prefers-reduced-motion` (règle globale) ; `CountUp` affiche directement la valeur finale dans ce cas, et le HTML serveur contient déjà la bonne valeur.
+- Défaut trouvé sur les captures : le dégradé derrière la zone de saisie formait un rectangle de la largeur de la colonne sur le fond animé → étendu à tout l'écran, avec `overflow-x: clip` sur `body` (pas `hidden`, qui casserait le `sticky`) ; largeur vérifiée à 390 px sur toutes les pages.
+- lint, typecheck, unitaires (103), build et e2e (4/4, en local) passent.

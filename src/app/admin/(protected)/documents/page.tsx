@@ -2,59 +2,79 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { listDocuments } from "@/lib/documents/service";
+import { DocumentIcon } from "../../../icons";
+import { card, pageTitle, pill, table } from "../../styles";
 import { AddDocumentForm } from "./add-document-form";
 import { DeleteDocumentButton } from "./delete-document-button";
 import { formatDate, sourceLabel } from "../format";
 
-export const metadata: Metadata = { title: "Documents â€” DocBot admin" };
+export const metadata: Metadata = { title: "Documents — DocBot admin" };
 
 export default async function DocumentsPage() {
   await requireAdmin();
   const documents = await listDocuments();
 
   return (
-    <div className="flex flex-col gap-10">
-      <section className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
+    <div className="flex flex-col gap-8">
+      <div>
+        <h1 className={pageTitle}>Documents</h1>
+        <p className="text-stone-500 dark:text-stone-400">
+          Le chatbot répond uniquement à partir de ces textes, découpés en chunks pour la recherche.
+        </p>
+      </div>
+
+      <section aria-labelledby="add-document" className={`${card} flex flex-col gap-4 p-5 sm:p-6`}>
+        <h2 id="add-document" className="font-display text-lg font-semibold text-stone-900 dark:text-cream-50">
+          Ajouter un document
+        </h2>
         <AddDocumentForm />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">
-          Base documentaire ({documents.length})
+      <section aria-labelledby="document-list" className="flex flex-col gap-3">
+        <h2 id="document-list" className="flex items-center gap-2 font-display text-lg font-semibold text-stone-900 dark:text-cream-50">
+          Base documentaire
+          <span className={pill}>{documents.length}</span>
         </h2>
         {documents.length === 0 ? (
-          <p className="text-sm text-zinc-500">Aucun document pour l&apos;instant.</p>
+          <div className={`${card} flex flex-col items-center gap-2 px-6 py-10 text-center`}>
+            <DocumentIcon className="size-8 text-stone-300 dark:text-stone-600" />
+            <p className="text-sm text-stone-500 dark:text-stone-400">Aucun document pour l&apos;instant.</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
+          <div className={table.wrapper}>
+            <table className={table.table}>
+              <thead className={table.head}>
                 <tr>
-                  <th className="py-2 pr-4 font-medium">Titre</th>
-                  <th className="py-2 pr-4 font-medium">Source</th>
-                  <th className="py-2 pr-4 font-medium">Chunks</th>
-                  <th className="py-2 pr-4 font-medium">AjoutÃ© le</th>
-                  <th className="py-2 font-medium">
+                  <th className={table.th}>Titre</th>
+                  <th className={table.th}>Source</th>
+                  <th className={table.th}>Chunks</th>
+                  <th className={table.th}>Ajouté le</th>
+                  <th className={table.th}>
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {documents.map((doc) => (
-                  <tr key={doc.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                    <td className="py-2 pr-4">
-                      <Link href={`/admin/documents/${doc.id}`} className="font-medium hover:underline">
+                  <tr key={doc.id} className={table.row}>
+                    <td className={table.td}>
+                      <Link
+                        href={`/admin/documents/${doc.id}`}
+                        className="font-medium text-stone-900 hover:text-sage-700 hover:underline dark:text-stone-100 dark:hover:text-sage-300"
+                      >
                         {doc.title}
                       </Link>
                     </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                      {sourceLabel(doc.source, doc.filename)}
+                    <td className={table.td}>
+                      <span className={pill}>{sourceLabel(doc.source, doc.filename)}</span>
                     </td>
-                    <td className="py-2 pr-4">{doc._count.chunks}</td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
+                    <td className={`${table.td} tabular-nums text-stone-600 dark:text-stone-300`}>
+                      {doc._count.chunks}
+                    </td>
+                    <td className={`${table.td} whitespace-nowrap text-stone-500 dark:text-stone-400`}>
                       {formatDate(doc.createdAt)}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className={`${table.td} text-right`}>
                       <DeleteDocumentButton id={doc.id} title={doc.title} />
                     </td>
                   </tr>
