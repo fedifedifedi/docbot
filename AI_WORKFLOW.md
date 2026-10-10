@@ -180,3 +180,22 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Valeur par défaut alignée partout (env, `.env.example`, docker-compose, README).
 - Scénario « Livraison » signalé par l'humain reproduit en **test d'intégration** (vraie recherche PostgreSQL + provider mock, comme l'API en production sans clé) : « Quel est le délai de livraison ? » → réponse sourcée ; sans document correspondant → refus sans source. Un cas supplémentaire écrit d'abord a été retiré en relecture : il aurait validé une réponse hors sujet du mock (« les délais peuvent varier… » au lieu de « 48 heures »).
 - Description et site du dépôt GitHub renseignés via `gh repo edit`.
+
+### PR 9 — `feat/chat-design` : refonte visuelle du chat public
+
+**Décisions humaines** : périmètre limité au chat public (l'espace admin viendra ensuite), style « chaleureux » (crème et vert sauge) choisi parmi trois propositions de l'IA.
+
+**IA**
+- Palettes `sage` et `cream` déclarées dans le thème Tailwind 4 (`@theme` dans `globals.css`), mode sombre via `dark:`.
+- Chat : en-tête avec logo, état vide avec exemples de questions cliquables (envoi direct), bulles de questions, réponses en cartes avec avatar, réponse « non trouvée » visuellement distincte, indicateur de saisie animé (désactivé avec `prefers-reduced-motion`), zone de saisie en pilule avec compteur près de la limite, focus rendu au champ après chaque réponse.
+- Citations `[n]` affichées en pastilles ; les crochets restent dans le texte (masqués visuellement) pour les lecteurs d'écran, le copier-coller et les sélecteurs de l'e2e. Découpage dans une fonction pure `splitCitations()` (`src/lib/chat/segments.ts`, sans import serveur pour rester dans le bundle client) + tests unitaires.
+- Sources en cartes repliables (`<details>`), numéro + titre + extrait.
+- Libellés et noms accessibles utilisés par l'e2e conservés (« Votre question », « Envoyer », « Réponse de DocBot », liste « Sources »).
+- Correctif au passage : `globals.css` imposait Arial au lieu de la police Geist chargée par le layout (effet visible aussi sur l'admin).
+
+**Vérification du résultat**
+- Captures Playwright (Edge local, `/api/chat` simulé, pas de base locale) en clair / sombre, bureau / mobile : état vide, chargement, réponse sourcée, refus.
+- Défaut trouvé sur les captures : en sombre, texte blanc sur `sage-500` sous le seuil de contraste AA (~4,4:1) → `sage-600` (~6:1) dans les deux modes.
+- lint, typecheck, tests unitaires (101) et build passent en local ; e2e exécutés par la CI.
+
+**Mineur accepté** : un extrait de source peut commencer par `## Titre` (le chunk commence par son titre Markdown) ; c'est la donnée stockée, non retouchée côté interface.

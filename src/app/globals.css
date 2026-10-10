@@ -12,6 +12,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Warm palette of the public chat: sage green accent on cream. */
+@theme {
+  --color-sage-50: #f3f6f1;
+  --color-sage-100: #e4ebdf;
+  --color-sage-200: #c9d7c1;
+  --color-sage-300: #a6bd9b;
+  --color-sage-400: #81a074;
+  --color-sage-500: #618356;
+  --color-sage-600: #4c6843;
+  --color-sage-700: #3d5337;
+  --color-sage-800: #33442f;
+  --color-sage-900: #2a3828;
+  --color-sage-950: #151e14;
+
+  --color-cream-50: #fdfbf6;
+  --color-cream-100: #f9f4e9;
+  --color-cream-200: #f0e7d4;
+  --color-cream-300: #e4d6b8;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -22,5 +42,29 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.6;
+  }
 }

@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { splitCitations } from "@/lib/chat/segments";
 
 const MAX_QUESTION_LENGTH = 1000;
+/** The character counter only shows up close to the limit. */
+const COUNTER_THRESHOLD = 800;
+
+const EXAMPLE_QUESTIONS = [
+  "Quels sont les horaires du support ?",
+  "Quel est le délai de livraison ?",
+  "Comment contacter le service client ?",
+];
 
 type Source = { ref: number; documentTitle: string; excerpt: string };
 type Message =
@@ -23,14 +32,14 @@ export function Chat() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, pending]);
 
-  async function ask(event: React.FormEvent) {
-    event.preventDefault();
-    const text = question.trim();
+  async function send(raw: string) {
+    const text = raw.trim();
     if (!text || pending) return;
 
     setError(null);
@@ -59,104 +68,239 @@ export function Chat() {
       setQuestion(text);
     } finally {
       setPending(false);
+      inputRef.current?.focus();
     }
+  }
+
+  function ask(event: React.FormEvent) {
+    event.preventDefault();
+    void send(question);
   }
 
   function reset() {
     setMessages([]);
     setConversationId(null);
     setError(null);
+    inputRef.current?.focus();
   }
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div role="log" aria-live="polite" aria-label="Conversation" className="flex flex-col gap-4">
-        {messages.length === 0 && (
-          <p className="text-sm text-zinc-500">
-            Exemple : « Quels sont les horaires du support ? »
-          </p>
-        )}
+      <div role="log" aria-live="polite" aria-label="Conversation" className="flex flex-col gap-5">
+        {messages.length === 0 && !pending && <EmptyState onPick={send} />}
         {messages.map((message, i) =>
           message.role === "user" ? (
             <p
               key={i}
-              className="self-end whitespace-pre-wrap rounded-lg bg-zinc-900 px-4 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900"
+              className="max-w-[85%] self-end whitespace-pre-wrap rounded-3xl rounded-br-md bg-sage-600 px-4 py-2.5 text-white shadow-sm"
             >
               {message.content}
             </p>
           ) : (
-            <article
-              key={i}
-              aria-label="Réponse de DocBot"
-              className="flex flex-col gap-3 rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800"
-            >
-              <p className={`whitespace-pre-wrap ${message.notFound ? "text-zinc-500" : ""}`}>
-                {message.content}
-              </p>
-              {message.sources.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Sources</p>
-                  <ul aria-label="Sources" className="flex flex-col gap-2">
-                    {message.sources.map((source) => (
-                      <li key={source.ref} className="text-sm">
-                        <details>
-                          <summary className="cursor-pointer">
-                            [{source.ref}] {source.documentTitle}
-                          </summary>
-                          <p className="mt-1 border-l-2 border-zinc-200 pl-3 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
-                            {source.excerpt}
-                          </p>
-                        </details>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </article>
+            <div key={i} className="flex max-w-[92%] gap-3">
+              <BotAvatar />
+              <article
+                aria-label="Réponse de DocBot"
+                className={`flex min-w-0 flex-1 flex-col gap-3 rounded-3xl rounded-tl-md px-4 py-3 ${
+                  message.notFound
+                    ? "border border-dashed border-cream-300 bg-cream-100/60 text-stone-600 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-400"
+                    : "border border-cream-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900"
+                }`}
+              >
+                <AnswerText text={message.content} />
+                {message.sources.length > 0 && <SourceList sources={message.sources} />}
+              </article>
+            </div>
           ),
         )}
-        {pending && <p className="text-sm text-zinc-500">DocBot cherche dans la documentation…</p>}
+        {pending && <TypingIndicator />}
         <div ref={endRef} />
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p
+          role="alert"
+          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300"
+        >
           {error}
         </p>
       )}
 
-      <form onSubmit={ask} className="sticky bottom-0 flex flex-col gap-2 bg-[var(--background)] py-3">
+      <form
+        onSubmit={ask}
+        className="sticky bottom-0 -mx-4 mt-auto flex flex-col gap-2 bg-gradient-to-t from-cream-50 from-70% to-transparent px-4 pt-6 pb-4 dark:from-stone-950"
+      >
         <label htmlFor="question" className="sr-only">
           Votre question
         </label>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 rounded-full border border-cream-200 bg-white p-1.5 pl-5 shadow-md shadow-stone-900/5 transition focus-within:border-sage-400 focus-within:ring-4 focus-within:ring-sage-200/60 dark:border-stone-800 dark:bg-stone-900 dark:focus-within:border-sage-600 dark:focus-within:ring-sage-900/60">
           <input
+            ref={inputRef}
             id="question"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             maxLength={MAX_QUESTION_LENGTH}
             placeholder="Posez votre question…"
             autoComplete="off"
-            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className="min-w-0 flex-1 bg-transparent py-2 text-stone-800 placeholder:text-stone-400 focus:outline-none dark:text-stone-100 dark:placeholder:text-stone-500"
           />
           <button
             type="submit"
             disabled={pending || !question.trim()}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sage-600 text-white transition hover:bg-sage-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600 disabled:cursor-not-allowed disabled:bg-stone-300 dark:hover:bg-sage-500 dark:disabled:bg-stone-700"
           >
-            Envoyer
+            <span className="sr-only">Envoyer</span>
+            <svg aria-hidden viewBox="0 0 20 20" fill="currentColor" className="size-5">
+              <path
+                fillRule="evenodd"
+                d="M10 17a.75.75 0 0 1-.75-.75V5.612L5.29 9.77a.75.75 0 0 1-1.08-1.04l5.25-5.5a.75.75 0 0 1 1.08 0l5.25 5.5a.75.75 0 1 1-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0 1 10 17Z"
+                clipRule="evenodd"
+              />
+            </svg>
           </button>
         </div>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={reset}
-            className="self-start text-xs text-zinc-500 hover:underline"
-          >
-            Nouvelle conversation
-          </button>
-        )}
+        <div className="flex min-h-5 items-center justify-between px-4 text-xs text-stone-500 dark:text-stone-400">
+          {messages.length > 0 ? (
+            <button
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center gap-1 rounded-full hover:text-sage-700 dark:hover:text-sage-300"
+            >
+              <svg aria-hidden viewBox="0 0 20 20" fill="currentColor" className="size-3.5">
+                <path
+                  fillRule="evenodd"
+                  d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Nouvelle conversation
+            </button>
+          ) : (
+            <span>Réponses tirées uniquement de la documentation.</span>
+          )}
+          {question.length > COUNTER_THRESHOLD && (
+            <span aria-live="polite">
+              {question.length} / {MAX_QUESTION_LENGTH}
+            </span>
+          )}
+        </div>
       </form>
+    </div>
+  );
+}
+
+function EmptyState({ onPick }: { onPick: (question: string) => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-3xl border border-cream-200 bg-cream-100/70 px-6 py-8 text-center dark:border-stone-800 dark:bg-stone-900/50">
+      <p className="font-medium text-stone-700 dark:text-stone-200">Bonjour ! Comment puis-je vous aider ?</p>
+      <ul aria-label="Exemples de questions" className="flex flex-wrap justify-center gap-2">
+        {EXAMPLE_QUESTIONS.map((example) => (
+          <li key={example}>
+            <button
+              type="button"
+              onClick={() => onPick(example)}
+              className="rounded-full border border-sage-200 bg-white px-4 py-2 text-sm text-sage-800 transition hover:border-sage-400 hover:bg-sage-50 dark:border-sage-800 dark:bg-stone-900 dark:text-sage-200 dark:hover:border-sage-600 dark:hover:bg-sage-950"
+            >
+              {example}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function BotAvatar() {
+  return (
+    <span
+      aria-hidden
+      className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-200"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 6.04A8.97 8.97 0 0 0 6 3.75c-1.05 0-2.06.18-3 .51v14.25A8.99 8.99 0 0 1 6 18c2.3 0 4.4.87 6 2.29m0-14.25a8.97 8.97 0 0 1 6-2.29c1.05 0 2.06.18 3 .51v14.25A8.99 8.99 0 0 0 18 18a8.97 8.97 0 0 0-6 2.29m0-14.25v14.25"
+        />
+      </svg>
+    </span>
+  );
+}
+
+/** Citation number as a badge; the brackets stay in the text for screen readers and copy-paste. */
+function CitationBadge({ refNumber }: { refNumber: number }) {
+  return (
+    <span className="mx-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-sage-100 px-1.5 align-[0.1em] text-[0.7rem] font-semibold leading-5 text-sage-800 dark:bg-sage-900 dark:text-sage-200">
+      <span className="sr-only">[</span>
+      {refNumber}
+      <span className="sr-only">]</span>
+    </span>
+  );
+}
+
+function AnswerText({ text }: { text: string }) {
+  return (
+    <p className="whitespace-pre-wrap leading-relaxed">
+      {splitCitations(text).map((segment, i) =>
+        segment.type === "text"
+          ? segment.text
+          : segment.refs.map((ref, j) => <CitationBadge key={`${i}-${j}`} refNumber={ref} />),
+      )}
+    </p>
+  );
+}
+
+function SourceList({ sources }: { sources: Source[] }) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-cream-200 pt-3 dark:border-stone-800">
+      <p className="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">Sources</p>
+      <ul aria-label="Sources" className="flex flex-col gap-2">
+        {sources.map((source) => (
+          <li key={source.ref}>
+            <details className="group rounded-2xl border border-cream-200 bg-cream-50 text-sm transition open:bg-cream-100/70 dark:border-stone-800 dark:bg-stone-950 dark:open:bg-stone-950">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-2xl px-3 py-2 text-stone-700 hover:text-sage-800 focus-visible:outline-2 focus-visible:outline-sage-500 dark:text-stone-200 dark:hover:text-sage-200 [&::-webkit-details-marker]:hidden">
+                <CitationBadge refNumber={source.ref} />{" "}
+                <span className="min-w-0 flex-1 truncate font-medium">{source.documentTitle}</span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-4 shrink-0 text-stone-400 transition group-open:rotate-180"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </summary>
+              <p className="mx-3 mb-3 border-l-2 border-sage-300 pl-3 leading-relaxed text-stone-600 dark:border-sage-700 dark:text-stone-400">
+                {source.excerpt}
+              </p>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex items-center gap-3">
+      <BotAvatar />
+      <p className="flex items-center gap-2 rounded-3xl rounded-tl-md border border-cream-200 bg-white px-4 py-2.5 text-sm text-stone-500 shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
+        <span aria-hidden className="flex gap-1">
+          {[0, 150, 300].map((delay) => (
+            <span
+              key={delay}
+              className="typing-dot size-1.5 rounded-full bg-sage-500"
+              style={{ animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </span>
+        DocBot cherche dans la documentation…
+      </p>
     </div>
   );
 }
