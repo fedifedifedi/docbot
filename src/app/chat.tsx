@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { splitCitations } from "@/lib/chat/segments";
+import { cleanExcerpt } from "@/lib/chat/segments";
+import { AnswerText, CitationBadge } from "./citations";
+import { ArrowUpIcon, BotAvatar, ChevronDownIcon, RefreshIcon } from "./icons";
 
 const MAX_QUESTION_LENGTH = 1000;
 /** The character counter only shows up close to the limit. */
@@ -150,13 +152,7 @@ export function Chat() {
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sage-600 text-white transition hover:bg-sage-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600 disabled:cursor-not-allowed disabled:bg-stone-300 dark:hover:bg-sage-500 dark:disabled:bg-stone-700"
           >
             <span className="sr-only">Envoyer</span>
-            <svg aria-hidden viewBox="0 0 20 20" fill="currentColor" className="size-5">
-              <path
-                fillRule="evenodd"
-                d="M10 17a.75.75 0 0 1-.75-.75V5.612L5.29 9.77a.75.75 0 0 1-1.08-1.04l5.25-5.5a.75.75 0 0 1 1.08 0l5.25 5.5a.75.75 0 1 1-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0 1 10 17Z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <ArrowUpIcon />
           </button>
         </div>
         <div className="flex min-h-5 items-center justify-between px-4 text-xs text-stone-500 dark:text-stone-400">
@@ -166,13 +162,7 @@ export function Chat() {
               onClick={reset}
               className="inline-flex items-center gap-1 rounded-full hover:text-sage-700 dark:hover:text-sage-300"
             >
-              <svg aria-hidden viewBox="0 0 20 20" fill="currentColor" className="size-3.5">
-                <path
-                  fillRule="evenodd"
-                  d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <RefreshIcon className="size-3.5" />
               Nouvelle conversation
             </button>
           ) : (
@@ -210,46 +200,6 @@ function EmptyState({ onPick }: { onPick: (question: string) => void }) {
   );
 }
 
-function BotAvatar() {
-  return (
-    <span
-      aria-hidden
-      className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-sage-100 text-sage-700 dark:bg-sage-900 dark:text-sage-200"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-4">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.04A8.97 8.97 0 0 0 6 3.75c-1.05 0-2.06.18-3 .51v14.25A8.99 8.99 0 0 1 6 18c2.3 0 4.4.87 6 2.29m0-14.25a8.97 8.97 0 0 1 6-2.29c1.05 0 2.06.18 3 .51v14.25A8.99 8.99 0 0 0 18 18a8.97 8.97 0 0 0-6 2.29m0-14.25v14.25"
-        />
-      </svg>
-    </span>
-  );
-}
-
-/** Citation number as a badge; the brackets stay in the text for screen readers and copy-paste. */
-function CitationBadge({ refNumber }: { refNumber: number }) {
-  return (
-    <span className="mx-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-sage-100 px-1.5 align-[0.1em] text-[0.7rem] font-semibold leading-5 text-sage-800 dark:bg-sage-900 dark:text-sage-200">
-      <span className="sr-only">[</span>
-      {refNumber}
-      <span className="sr-only">]</span>
-    </span>
-  );
-}
-
-function AnswerText({ text }: { text: string }) {
-  return (
-    <p className="whitespace-pre-wrap leading-relaxed">
-      {splitCitations(text).map((segment, i) =>
-        segment.type === "text"
-          ? segment.text
-          : segment.refs.map((ref, j) => <CitationBadge key={`${i}-${j}`} refNumber={ref} />),
-      )}
-    </p>
-  );
-}
-
 function SourceList({ sources }: { sources: Source[] }) {
   return (
     <div className="flex flex-col gap-2 border-t border-cream-200 pt-3 dark:border-stone-800">
@@ -261,21 +211,10 @@ function SourceList({ sources }: { sources: Source[] }) {
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-2xl px-3 py-2 text-stone-700 hover:text-sage-800 focus-visible:outline-2 focus-visible:outline-sage-500 dark:text-stone-200 dark:hover:text-sage-200 [&::-webkit-details-marker]:hidden">
                 <CitationBadge refNumber={source.ref} />{" "}
                 <span className="min-w-0 flex-1 truncate font-medium">{source.documentTitle}</span>
-                <svg
-                  aria-hidden
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="size-4 shrink-0 text-stone-400 transition group-open:rotate-180"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <ChevronDownIcon className="size-4 shrink-0 text-stone-400 transition group-open:rotate-180" />
               </summary>
               <p className="mx-3 mb-3 border-l-2 border-sage-300 pl-3 leading-relaxed text-stone-600 dark:border-sage-700 dark:text-stone-400">
-                {source.excerpt}
+                {cleanExcerpt(source.excerpt)}
               </p>
             </details>
           </li>

@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
 import { getDocumentWithChunks } from "@/lib/documents/service";
+import { ArrowLeftIcon } from "../../../../icons";
+import { backLink, card, pill } from "../../../styles";
 import { DeleteDocumentButton } from "../delete-document-button";
 import { formatDate, sourceLabel } from "../../format";
 
-export const metadata: Metadata = { title: "Document â€” DocBot admin" };
+export const metadata: Metadata = { title: "Document — DocBot admin" };
 
 export default async function DocumentPage({ params }: PageProps<"/admin/documents/[id]">) {
   await requireAdmin();
@@ -16,28 +18,37 @@ export default async function DocumentPage({ params }: PageProps<"/admin/documen
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/admin/documents" className="text-sm text-zinc-500 hover:underline">
-        â† Documents
+      <Link href="/admin/documents" className={backLink}>
+        <ArrowLeftIcon className="size-4" />
+        Documents
       </Link>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{document.title}</h1>
-          <p className="text-sm text-zinc-500">
-            {sourceLabel(document.source, document.filename)} Â· ajoutÃ© le{" "}
-            {formatDate(document.createdAt)} Â· {document.chunks.length} chunk
-            {document.chunks.length > 1 ? "s" : ""}
+      <div className={`${card} flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6`}>
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="break-words text-2xl font-semibold tracking-tight text-stone-900 dark:text-cream-50">
+            {document.title}
+          </h1>
+          <p className="flex flex-wrap gap-2">
+            <span className={pill}>{sourceLabel(document.source, document.filename)}</span>
+            <span className={pill}>Ajouté le {formatDate(document.createdAt)}</span>
+            <span className={pill}>
+              {document.chunks.length} chunk{document.chunks.length > 1 ? "s" : ""}
+            </span>
           </p>
         </div>
         <DeleteDocumentButton id={document.id} title={document.title} />
       </div>
       <ol className="flex flex-col gap-3">
         {document.chunks.map((chunk) => (
-          <li
-            key={chunk.id}
-            className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
-          >
-            <p className="mb-1 text-xs font-medium text-zinc-500">Chunk {chunk.index + 1}</p>
-            <p className="whitespace-pre-wrap text-sm">{chunk.content}</p>
+          <li key={chunk.id} className={`${card} flex flex-col gap-2 p-4 sm:p-5`}>
+            <p className="flex items-center gap-2 text-xs">
+              <span className="rounded-full bg-sage-100 px-2.5 py-0.5 font-semibold text-sage-800 dark:bg-sage-900 dark:text-sage-200">
+                Chunk {chunk.index + 1}
+              </span>
+              <span className="text-stone-400 dark:text-stone-500">{chunk.content.length} caractères</span>
+            </p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700 dark:text-stone-300">
+              {chunk.content}
+            </p>
           </li>
         ))}
       </ol>

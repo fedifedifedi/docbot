@@ -2,6 +2,14 @@
 export type AnswerSegment = { type: "text"; text: string } | { type: "cite"; refs: number[] };
 
 /**
+ * Removes Markdown heading markers ("# Support", "## Livraison") from a flattened excerpt.
+ * Display only: the stored excerpt is left unchanged.
+ */
+export function cleanExcerpt(excerpt: string): string {
+  return excerpt.replace(/(^|\s)#{1,6}\s+/g, "$1").trim();
+}
+
+/**
  * Splits an answer into text and citation segments so the UI can render citations as badges.
  * Pure (no server import) so it can run in the client bundle.
  */

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { splitCitations } from "@/lib/chat/segments";
+import { cleanExcerpt, splitCitations } from "@/lib/chat/segments";
+
+describe("cleanExcerpt", () => {
+  it("removes Markdown heading markers at the start and inside the excerpt", () => {
+    expect(cleanExcerpt("# Support Les horaires sont de 9h à 18h. ## Livraison 48 heures.")).toBe(
+      "Support Les horaires sont de 9h à 18h. Livraison 48 heures.",
+    );
+  });
+
+  it("keeps a # that is not a heading marker", () => {
+    expect(cleanExcerpt("Ticket #42 et canal C# : voir le wiki.")).toBe("Ticket #42 et canal C# : voir le wiki.");
+  });
+});
 
 describe("splitCitations", () => {
   it("separates text from citations, keeping their order", () => {

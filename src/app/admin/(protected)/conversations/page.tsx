@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/session";
 import { listConversations } from "@/lib/chat/history";
+import { ArrowLeftIcon, ArrowRightIcon, ChatIcon } from "../../../icons";
+import { card, pill, table } from "../../styles";
 import { formatDate } from "../format";
 
 export const metadata: Metadata = { title: "Conversations — DocBot admin" };
+
+const pageButton =
+  "inline-flex items-center gap-1.5 rounded-full border border-cream-200 bg-white px-4 py-2 text-sm text-stone-700 transition hover:border-sage-300 hover:text-sage-800 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-sage-700 dark:hover:text-sage-200";
 
 function truncate(text: string, max = 120): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
@@ -17,32 +22,52 @@ export default async function ConversationsPage({ searchParams }: PageProps<"/ad
   const { conversations, page: current, pageCount, total } = await listConversations(requested);
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Conversations ({total})</h1>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-stone-900 dark:text-cream-50">
+          Conversations
+          <span className={pill}>{total}</span>
+        </h1>
+        <p className="text-stone-500 dark:text-stone-400">
+          Les échanges des visiteurs avec le chatbot, des plus récents aux plus anciens.
+        </p>
+      </div>
       {conversations.length === 0 ? (
-        <p className="text-sm text-zinc-500">Aucune conversation pour l&apos;instant.</p>
+        <div className={`${card} flex flex-col items-center gap-2 px-6 py-10 text-center`}>
+          <ChatIcon className="size-8 text-stone-300 dark:text-stone-600" />
+          <p className="text-sm text-stone-500 dark:text-stone-400">Aucune conversation pour l&apos;instant.</p>
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
+        <div className={table.wrapper}>
+          <table className={table.table}>
+            <thead className={table.head}>
               <tr>
-                <th className="py-2 pr-4 font-medium">Première question</th>
-                <th className="py-2 pr-4 font-medium">Messages</th>
-                <th className="py-2 pr-4 font-medium">Début</th>
-                <th className="py-2 font-medium">Dernière activité</th>
+                <th className={table.th}>Première question</th>
+                <th className={table.th}>Messages</th>
+                <th className={table.th}>Début</th>
+                <th className={table.th}>Dernière activité</th>
               </tr>
             </thead>
             <tbody>
               {conversations.map((c) => (
-                <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-4">
-                    <Link href={`/admin/conversations/${c.id}`} className="font-medium hover:underline">
+                <tr key={c.id} className={table.row}>
+                  <td className={table.td}>
+                    <Link
+                      href={`/admin/conversations/${c.id}`}
+                      className="font-medium text-stone-900 hover:text-sage-700 hover:underline dark:text-stone-100 dark:hover:text-sage-300"
+                    >
                       {c.firstQuestion ? truncate(c.firstQuestion) : "(sans question)"}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4">{c.messageCount}</td>
-                  <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">{formatDate(c.createdAt)}</td>
-                  <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatDate(c.updatedAt)}</td>
+                  <td className={table.td}>
+                    <span className={pill}>{c.messageCount}</span>
+                  </td>
+                  <td className={`${table.td} whitespace-nowrap text-stone-500 dark:text-stone-400`}>
+                    {formatDate(c.createdAt)}
+                  </td>
+                  <td className={`${table.td} whitespace-nowrap text-stone-500 dark:text-stone-400`}>
+                    {formatDate(c.updatedAt)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -50,18 +75,20 @@ export default async function ConversationsPage({ searchParams }: PageProps<"/ad
         </div>
       )}
       {pageCount > 1 && (
-        <nav aria-label="Pagination" className="flex items-center gap-4 text-sm">
+        <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-3 text-sm">
           {current > 1 && (
-            <Link href={`/admin/conversations?page=${current - 1}`} className="hover:underline">
-              ← Plus récentes
+            <Link href={`/admin/conversations?page=${current - 1}`} className={pageButton}>
+              <ArrowLeftIcon className="size-4" />
+              Plus récentes
             </Link>
           )}
-          <span className="text-zinc-500">
+          <span className="text-stone-500 dark:text-stone-400">
             Page {current} / {pageCount}
           </span>
           {current < pageCount && (
-            <Link href={`/admin/conversations?page=${current + 1}`} className="hover:underline">
-              Plus anciennes →
+            <Link href={`/admin/conversations?page=${current + 1}`} className={pageButton}>
+              Plus anciennes
+              <ArrowRightIcon className="size-4" />
             </Link>
           )}
         </nav>

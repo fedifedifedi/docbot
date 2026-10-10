@@ -198,4 +198,14 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Défaut trouvé sur les captures : en sombre, texte blanc sur `sage-500` sous le seuil de contraste AA (~4,4:1) → `sage-600` (~6:1) dans les deux modes.
 - lint, typecheck, tests unitaires (101) et build passent en local ; e2e exécutés par la CI.
 
-**Mineur accepté** : un extrait de source peut commencer par `## Titre` (le chunk commence par son titre Markdown) ; c'est la donnée stockée, non retouchée côté interface.
+**Extension demandée par l'humain : refonte de tout le design** (même PR)
+- Fond crème sur tout le site ; éléments partagés : icônes (`src/app/icons.tsx`), pastilles de citation (`src/app/citations.tsx`), classes de l'admin (`src/app/admin/styles.ts`).
+- Admin : en-tête avec logo et section active surlignée, connexion en carte, tableau de bord avec compteurs (documents, chunks, conversations — fonctions de service existantes), formulaire d'ajout et tableaux en cartes, détail d'un document avec ses chunks en cartes, détail d'une conversation affiché comme un fil de discussion.
+- Extraits de sources : marqueurs de titre Markdown retirés à l'affichage (`cleanExcerpt()`, testée ; la donnée stockée est inchangée) — remplace le « mineur accepté » ci-dessus.
+- Bug existant corrigé : texte mal encodé en production depuis la PR 6 (`AjoutÃ© le`, `â† Documents`, `Â·`) sur la liste et le détail des documents.
+
+**Vérification du résultat**
+- Environnement local monté pendant la PR : PostgreSQL Windows déjà installé (Docker toujours impossible : `bad record MAC`), rôle et base créés par un script que l'humain a lancé avec le mot de passe `postgres` (que l'IA n'a pas) ; premier essai en échec à cause du BOM ajouté par Windows PowerShell au fichier SQL, corrigé.
+- Captures Playwright de chaque page (clair / sombre, bureau / mobile) et mesure automatique du débordement horizontal à 390 px. Défauts trouvés et corrigés : la page Documents faisait 430 px de large (libellé `sr-only` en position absolue qui sortait du conteneur défilant du tableau → `relative`) ; en-tête admin sur trois lignes sur mobile → deux lignes, déconnexion en icône (libellé conservé pour les lecteurs d'écran).
+- Fausse alerte écartée : avertissement d'hydratation `caret-color` causé par Playwright lui-même (masquage du curseur pendant les captures), pas par l'application.
+- **e2e exécutés en local pour la première fois** (4/4), avec Edge via une configuration temporaire (navigateur Playwright non téléchargeable) ; lint, typecheck, unitaires (103) et build passent.
