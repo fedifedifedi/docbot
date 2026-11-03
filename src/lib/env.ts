@@ -1,4 +1,11 @@
 import { z } from "zod";
+import { SEARCH_MODES } from "@/lib/search/hybrid";
+
+/**
+ * Provisional value, to be replaced by the one measured on the reference questions
+ * (`npm run measure:similarity`).
+ */
+export const DEFAULT_VECTOR_MIN_SIMILARITY = 0.85;
 
 const envSchema = z
   .object({
@@ -9,6 +16,14 @@ const envSchema = z
     LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
     ANTHROPIC_API_KEY: z.string().optional(),
     ANTHROPIC_MODEL: z.string().min(1).default("claude-haiku-4-5-20251001"),
+    /** `fulltext` (default) or `hybrid` (full-text + embeddings). Any other value is refused. */
+    SEARCH_MODE: z.enum(SEARCH_MODES).default("fulltext"),
+    /** Hybrid mode: vector results under this cosine similarity are ignored (off-topic guard). */
+    VECTOR_MIN_SIMILARITY: z.coerce
+      .number()
+      .min(0, "VECTOR_MIN_SIMILARITY must be between 0 and 1")
+      .max(1, "VECTOR_MIN_SIMILARITY must be between 0 and 1")
+      .default(DEFAULT_VECTOR_MIN_SIMILARITY),
   })
   .refine((env) => env.LLM_PROVIDER !== "anthropic" || Boolean(env.ANTHROPIC_API_KEY), {
     path: ["ANTHROPIC_API_KEY"],

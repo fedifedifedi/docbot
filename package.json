@@ -15,6 +15,7 @@
     "db:deploy": "prisma migrate deploy",
     "model:download": "tsx scripts/download-model.ts",
     "demo:load": "tsx --conditions=react-server --env-file=.env scripts/load-demo.ts",
+    "embeddings:backfill": "tsx --conditions=react-server --env-file=.env scripts/backfill-embeddings.ts",
     "eval:search": "tsx --conditions=react-server --env-file=.env scripts/eval-search.ts",
     "postinstall": "prisma generate"
   },

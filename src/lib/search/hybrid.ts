@@ -33,13 +33,6 @@ export type HybridOptions = {
   k?: number;
 };
 
-/** Reads SEARCH_MODE: `fulltext` unless explicitly set to `hybrid`. Unknown values are refused. */
-export function parseSearchMode(value: string | undefined): SearchMode {
-  if (value === undefined || value === "") return "fulltext";
-  if ((SEARCH_MODES as readonly string[]).includes(value)) return value as SearchMode;
-  throw new Error(`SEARCH_MODE must be one of ${SEARCH_MODES.join(", ")} (got "${value}")`);
-}
-
 /** Keeps the vector results at or above the similarity threshold (off-topic guard). */
 export function filterBySimilarity(hits: VectorHit[], minSimilarity: number): VectorHit[] {
   return hits.filter((hit) => hit.similarity >= minSimilarity);

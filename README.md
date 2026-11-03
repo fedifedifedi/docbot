@@ -92,6 +92,10 @@ Le code applicatif ne dépend que de l'interface [`LLMProvider`](src/lib/llm/pro
 | `LLM_PROVIDER` | non | `mock` (défaut, aucune clé requise) ou `anthropic` |
 | `ANTHROPIC_API_KEY` | si `anthropic` | Clé API Claude |
 | `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-haiku-4-5-20251001`) |
+| `SEARCH_MODE` | non | `fulltext` (défaut) ou `hybrid` (full-text + embeddings, fusion RRF) ; toute autre valeur est refusée au démarrage |
+| `VECTOR_MIN_SIMILARITY` | non | Mode `hybrid` : similarité cosinus minimale d'un résultat vectoriel (entre 0 et 1) |
+| `EMBEDDING_MODEL` | non | Modèle d'embeddings Hugging Face (défaut `Xenova/multilingual-e5-small`) |
+| `EMBEDDING_MODEL_DIR` | non | Dossier local des fichiers du modèle (défaut `.models`) |
 | `PORT` | Railway | Port d'écoute ; doit correspondre au port cible du domaine public (voir Dépannage) |
 
 Générer un `SESSION_SECRET` :
@@ -125,6 +129,8 @@ Aucun test ne nécessite de clé API ni d'accès réseau externe.
 | `npm run db:deploy` | Appliquer les migrations |
 | `npm run model:download` | Télécharger le modèle d'embeddings dans `.models/` (une fois ; ensuite tout fonctionne hors ligne) |
 | `npm run demo:load` | Charger le protocole d'imagerie fictif de démonstration ([fixtures/demo/protocole-imagerie.md](fixtures/demo/protocole-imagerie.md)) dans la base locale |
+| `npm run embeddings:backfill` | Calculer les embeddings des morceaux qui n'en ont pas (documents ajoutés en mode `fulltext`) ; relançable sans risque |
+| `npm run eval:search` | Poser les questions de référence ([fixtures/demo/questions.ts](fixtures/demo/questions.ts)) et comparer les modes de recherche |
 
 ## Structure
 

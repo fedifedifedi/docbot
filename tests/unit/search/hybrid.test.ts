@@ -3,7 +3,6 @@ import { cosineSimilarity } from "@/lib/embeddings/embedder";
 import {
   filterBySimilarity,
   hybridSearch,
-  parseSearchMode,
   reciprocalRankFusion,
   RRF_K,
   type HybridDeps,
@@ -22,21 +21,6 @@ const base = (id: string) => ({
 });
 const text = (id: string, rank = 0.1): SearchHit => ({ ...base(id), rank });
 const vec = (id: string, similarity: number): VectorHit => ({ ...base(id), similarity });
-
-describe("parseSearchMode", () => {
-  it("defaults to fulltext", () => {
-    expect(parseSearchMode(undefined)).toBe("fulltext");
-    expect(parseSearchMode("")).toBe("fulltext");
-  });
-
-  it("accepts hybrid", () => {
-    expect(parseSearchMode("hybrid")).toBe("hybrid");
-  });
-
-  it("refuses an unknown value instead of silently picking a mode", () => {
-    expect(() => parseSearchMode("vector")).toThrow(/fulltext, hybrid/);
-  });
-});
 
 describe("filterBySimilarity", () => {
   it("keeps results at or above the threshold", () => {
