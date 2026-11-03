@@ -123,6 +123,8 @@ Aucun test ne nécessite de clé API ni d'accès réseau externe.
 | `npm run build` | Build de production |
 | `npm run db:migrate` | Créer une migration (dev) |
 | `npm run db:deploy` | Appliquer les migrations |
+| `npm run model:download` | Télécharger le modèle d'embeddings dans `.models/` (une fois ; ensuite tout fonctionne hors ligne) |
+| `npm run demo:load` | Charger le protocole d'imagerie fictif de démonstration ([fixtures/demo/protocole-imagerie.md](fixtures/demo/protocole-imagerie.md)) dans la base locale |
 
 ## Structure
 
