@@ -9,13 +9,21 @@ import { SEARCH_MODES } from "@/lib/search/hybrid";
  */
 export const DEFAULT_VECTOR_MIN_SIMILARITY = 0.853;
 
+/**
+ * Measured on the reference questions (`npm run measure:extractive`): quotes from a wrong
+ * section or an off-topic question reach 0.821, right quotes start at 0.851; middle of that
+ * window (margin 0.030).
+ */
+export const DEFAULT_EXTRACTIVE_MIN_SIMILARITY = 0.836;
+
 const envSchema = z
   .object({
     DATABASE_URL: z
       .string()
       .regex(/^postgres(ql)?:\/\//, "DATABASE_URL must be a postgresql:// connection string"),
     SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
-    LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
+    /** mock (default, CI) · anthropic (Claude API) · extractive (local quotes, embedding model). */
+    LLM_PROVIDER: z.enum(["mock", "anthropic", "extractive"]).default("mock"),
     ANTHROPIC_API_KEY: z.string().optional(),
     ANTHROPIC_MODEL: z.string().min(1).default("claude-haiku-4-5-20251001"),
     /** `fulltext` (default) or `hybrid` (full-text + embeddings). Any other value is refused. */
@@ -26,6 +34,12 @@ const envSchema = z
       .min(0, "VECTOR_MIN_SIMILARITY must be between 0 and 1")
       .max(1, "VECTOR_MIN_SIMILARITY must be between 0 and 1")
       .default(DEFAULT_VECTOR_MIN_SIMILARITY),
+    /** extractive provider: sentences under this cosine similarity with the question are not quoted. */
+    EXTRACTIVE_MIN_SIMILARITY: z.coerce
+      .number()
+      .min(0, "EXTRACTIVE_MIN_SIMILARITY must be between 0 and 1")
+      .max(1, "EXTRACTIVE_MIN_SIMILARITY must be between 0 and 1")
+      .default(DEFAULT_EXTRACTIVE_MIN_SIMILARITY),
     /** Adds the long form of medical abbreviations to the question before searching (off by default). */
     MEDICAL_ABBREVIATIONS: z
       .enum(["true", "false"], { message: 'MEDICAL_ABBREVIATIONS must be "true" or "false"' })

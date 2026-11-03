@@ -18,6 +18,7 @@
     "demo:load": "tsx --conditions=react-server --env-file=.env scripts/load-demo.ts",
     "embeddings:backfill": "tsx --conditions=react-server --env-file=.env scripts/backfill-embeddings.ts",
     "measure:similarity": "tsx --conditions=react-server --env-file=.env scripts/measure-similarity.ts",
+    "measure:extractive": "tsx --conditions=react-server --env-file=.env scripts/measure-extractive.ts",
     "eval:search": "tsx --conditions=react-server --env-file=.env scripts/eval-search.ts",
     "postinstall": "prisma generate"
   },

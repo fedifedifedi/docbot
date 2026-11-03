@@ -109,13 +109,28 @@ Sur le protocole fictif [fixtures/demo/protocole-imagerie.md](fixtures/demo/prot
 - Gagnées par l'hybride : pacemaker → stimulateur cardiaque, femme enceinte / radio → grossesse, peur d'être enfermé → claustrophobie. Gagnée par le dictionnaire : IDM → infarctus du myocarde.
 - Restent en échec : deux paraphrases dont la bonne section est sous le seuil (identitovigilance 0,822, radioprotection 0,850) ; deux questions hors sujet qui passent par le **full-text** (« carte bancaire » ↔ « carte du porteur », « propose » ↔ « test proposé ») : la recherche en OU retient un chunk dès qu'un mot correspond, et le seuil ne filtre que le côté vectoriel.
 
-Pour la démo en mode hybride : `npm run model:download` (une fois), puis dans `.env` `SEARCH_MODE="hybrid"` et `MEDICAL_ABBREVIATIONS="true"`, `npm run demo:load`, `npm run embeddings:backfill`, `npm run dev`.
+### Réponses extractives (`LLM_PROVIDER=extractive`)
+
+Le provider `mock` choisit ses phrases par **mots communs** avec la question : il refuse donc les questions que la recherche hybride vient de résoudre grâce au sens (« IDM », « femme enceinte », « peur d'être enfermé » : 0 à 1 mot commun avec le bon passage). Le provider [`extractive`](src/lib/llm/extractive.ts) garde le même principe — **ne rien écrire qui ne soit dans la documentation** — mais choisit les phrases **par le sens**, avec le même modèle local, gratuit et hors ligne :
+
+1. il découpe le **1er passage** retourné par la recherche en phrases, chacune notée avec le titre de sa section (« IRM et stimulateur cardiaque. Un dispositif… ») pour garder son contexte ;
+2. il compare chaque phrase à la question (dictionnaire d'abréviations appliqué si activé) ;
+3. il cite au plus **2 phrases** au-dessus de `EXTRACTIVE_MIN_SIMILARITY`, **remises dans l'ordre du document**, avec `[1]` ; sinon, phrase de refus exacte.
+
+Le garde-fou ne change pas : aucun passage trouvé → refus **sans appeler** le provider.
+
+**Pourquoi uniquement le 1er passage** (mesuré avec `npm run measure:extractive`) : en notant les phrases de **tous** les passages, le provider refaisait la recherche phrase par phrase, et moins bien que la fusion RRF. Pour « pacemaker avant une IRM », la recherche avait mis la bonne section en tête, mais la phrase la plus proche venait de la section Infarctus (« Une IRM cardiaque peut être programmée… », 0,883). Les deux groupes se chevauchaient (marge **−0,031**, aucun seuil possible). Limité au 1er passage, les citations justes vont de 0,851 à 0,916 et les mauvaises (mauvaise section ou hors sujet) plafonnent à 0,821 : marge **+0,030**, seuil **0,836** au milieu.
+
+Résultat sur les 17 questions (recherche hybride + dictionnaire + `extractive`) : **6 réponses justes citées** (délais, pacemaker, IDM, reins, grossesse, claustrophobie), **11 refus**, **aucune mauvaise réponse**. Le provider refuse aussi les 4 cas où la recherche avait mis un mauvais passage en tête (deux paraphrases sous le seuil vectoriel, deux faux positifs du full-text). Limite : la citation reste partielle quand la section contient plus de 2 phrases utiles (pacemaker : la contre-indication formelle n'est pas citée).
+
+Pour la démo : `npm run model:download` (une fois), puis dans `.env` `SEARCH_MODE="hybrid"`, `MEDICAL_ABBREVIATIONS="true"` et `LLM_PROVIDER="extractive"`, `npm run demo:load`, `npm run embeddings:backfill`, `npm run dev`.
 
 ### Providers LLM
 
 | `LLM_PROVIDER` | Usage | Comportement |
 |---|---|---|
-| `mock` (défaut) | tests, CI, démo sans clé | Déterministe et hors ligne : répond avec les phrases des extraits qui couvrent la question, les cite, refuse sinon |
+| `mock` (défaut) | tests, CI, démo sans clé | Déterministe et hors ligne : répond avec les phrases des extraits qui couvrent les **mots** de la question, les cite, refuse sinon (ne voit pas les synonymes) |
+| `extractive` | démo locale, gratuite | Cite les phrases du **1er passage** les plus proches **en sens** de la question (modèle d'embeddings local), refuse sous `EXTRACTIVE_MIN_SIMILARITY` — voir [Réponses extractives](#réponses-extractives-llm_providerextractive) |
 | `anthropic` | production | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) par défaut, modifiable avec `ANTHROPIC_MODEL` ; erreur ou refus du modèle → message « service momentanément indisponible » |
 
 Le code applicatif ne dépend que de l'interface [`LLMProvider`](src/lib/llm/provider.ts).
@@ -128,7 +143,8 @@ Le code applicatif ne dépend que de l'interface [`LLMProvider`](src/lib/llm/pro
 | `SESSION_SECRET` | oui | Clé de signature des sessions admin (≥ 32 caractères) |
 | `ADMIN_EMAIL` | oui | Email de l'admin créé par le seed |
 | `ADMIN_PASSWORD` | oui | Mot de passe de l'admin (≥ 12 caractères) |
-| `LLM_PROVIDER` | non | `mock` (défaut, aucune clé requise) ou `anthropic` |
+| `LLM_PROVIDER` | non | `mock` (défaut, aucune clé requise), `anthropic` (API Claude, payante) ou `extractive` (local, gratuit) |
+| `EXTRACTIVE_MIN_SIMILARITY` | non | `extractive` : similarité minimale d'une phrase citée, entre 0 et 1 (défaut `0.836`, mesuré) |
 | `ANTHROPIC_API_KEY` | si `anthropic` | Clé API Claude |
 | `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-haiku-4-5-20251001`) |
 | `SEARCH_MODE` | non | `fulltext` (défaut) ou `hybrid` (full-text + embeddings, fusion RRF) ; toute autre valeur est refusée au démarrage |
@@ -150,9 +166,9 @@ Aucun secret n'est versionné : seul [.env.example](.env.example) est dans le d�
 
 | Commande | Contenu | Base |
 |---|---|---|
-| `npm test` | **Unitaires** (168) : découpage en chunks, validation des documents et PDF, extraction des termes de recherche, fusion RRF, seuil, dictionnaire d'abréviations, évaluation, citations, pipeline de réponse (faux search / faux LLM), providers, session, mots de passe, limiteur — avec un **faux modèle d'embeddings déterministe** (aucun téléchargement) | non |
+| `npm test` | **Unitaires** (184) : découpage en chunks, validation des documents et PDF, extraction des termes de recherche, fusion RRF, seuil, dictionnaire d'abréviations, provider extractif, évaluation, citations, pipeline de réponse (faux search / faux LLM), providers, session, mots de passe, limiteur — avec un **faux modèle d'embeddings déterministe** (aucun téléchargement) | non |
 | `npm run test:integration` | **Intégration** (24) : recherche full-text réelle, embeddings et recherche vectorielle sur **pgvector** (faux modèle), rattrapage des embeddings, réponse de bout en bout, persistance et historique — **vide les documents et conversations** | PostgreSQL + pgvector migré |
-| `npm run test:search-quality` | **Qualité de recherche, vrai modèle** (25) : questions de référence, refus hors sujet, aucune régression full-text → hybride → dictionnaire. **Local uniquement** (pas en CI : il faut les fichiers du modèle) ; recharge le document de démo, ne touche à rien d'autre | base locale + `npm run model:download` |
+| `npm run test:search-quality` | **Qualité, vrai modèle** (34) : recherche (questions de référence, refus hors sujet, aucune régression full-text → hybride → dictionnaire) et chat complet avec le provider `extractive` (6 réponses citées, refus des mauvais passages, IDM en 2 phrases dans l'ordre). **Local uniquement** (pas en CI : il faut les fichiers du modèle) ; recharge le document de démo, ne touche à rien d'autre | base locale + `npm run model:download` |
 | `npm run test:e2e` | **Playwright** (4) : authentification, gestion des documents, **parcours complet de SPEC §5** (ajout d'un document → réponse sourcée → refus sans source → conversation retrouvée dans l'historique), validation de l'API | build + base seedée, `LLM_PROVIDER=mock` |
 
 Aucun test ne nécessite de clé API ni d'accès réseau externe.
@@ -172,6 +188,7 @@ Aucun test ne nécessite de clé API ni d'accès réseau externe.
 | `npm run demo:load` | Charger le protocole d'imagerie fictif de démonstration ([fixtures/demo/protocole-imagerie.md](fixtures/demo/protocole-imagerie.md)) dans la base locale |
 | `npm run embeddings:backfill` | Calculer les embeddings des morceaux qui n'en ont pas (documents ajoutés en mode `fulltext`) ; relançable sans risque |
 | `npm run measure:similarity` | Mesurer, avec le vrai modèle, la similarité de chaque question de référence avec chaque section, et l'intervalle possible pour le seuil |
+| `npm run measure:extractive` | Mesurer la similarité de la phrase que citerait le provider `extractive` pour chaque question, et l'intervalle possible pour son seuil |
 | `npm run eval:search` | Poser les questions de référence ([fixtures/demo/questions.ts](fixtures/demo/questions.ts)) et comparer les modes de recherche |
 
 ## Structure

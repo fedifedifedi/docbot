@@ -258,3 +258,9 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Ancien protocole PDF puis 5 documents laissés par les e2e en base de démo : ils faussaient l'évaluation (repérés grâce à la note « autres documents en concurrence » du script) ; supprimés.
 - E2E locaux en parallèle : connexion admin au-delà du délai ; reproduit à l'identique sur `main` (pas une régression), passent avec un seul worker et en CI.
 - Erreur de l'IA : un mot de passe local affiché en lisant une capture d'échec Playwright ; captures supprimées, signalé à l'humain.
+
+**Dernière fonctionnalité de la PR 11 : provider `extractive`**
+- Constat humain en testant le chat : trois questions que `eval:search` donnait réussies étaient refusées. Diagnostic de l'IA, étape par étape : pour « IDM » et « femme enceinte », la recherche trouve la bonne section mais le provider `mock` refuse (il compare les **mots** de la question, 0/4 et 1/5) ; pour « **J'ai** peur d'être enfermé… », la cause est en amont : la reformulation fait passer la bonne section de 0,857 à 0,842, sous le seuil vectoriel, et le full-text met une mauvaise section en tête (mot « être »).
+- Décision humaine : un provider local `extractive` qui choisit les phrases par le sens (même modèle), seuil mesuré, `mock` inchangé pour la CI, garde-fou inchangé.
+- Mesure (`npm run measure:extractive`) : en notant les phrases de tous les passages, aucun seuil possible (marge −0,031 : pour « pacemaker », phrase choisie dans la section Infarctus). Limité au 1er passage (celui que la recherche a classé premier) : marge +0,030. Décisions humaines : 1er passage uniquement, 2 phrases maximum remises dans l'ordre du document, seuil 0,836.
+- Résultat : 6 réponses justes citées, 11 refus, aucune mauvaise réponse sur les 17 questions ; le provider refuse aussi les 4 cas où la recherche avait mis un mauvais passage en tête. Limite dite : citation partielle quand la section contient plus de 2 phrases utiles (pacemaker).

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_VECTOR_MIN_SIMILARITY, parseEnv } from "@/lib/env";
+import { DEFAULT_EXTRACTIVE_MIN_SIMILARITY, DEFAULT_VECTOR_MIN_SIMILARITY, parseEnv } from "@/lib/env";
 
 const base = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
@@ -53,6 +53,13 @@ describe("parseEnv", () => {
     expect(parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "0.82" }).VECTOR_MIN_SIMILARITY).toBe(0.82);
     expect(() => parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "1.5" })).toThrow(/VECTOR_MIN_SIMILARITY/);
     expect(() => parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "beaucoup" })).toThrow(/VECTOR_MIN_SIMILARITY/);
+  });
+
+  it("accepts the extractive provider and reads its threshold between 0 and 1", () => {
+    expect(parseEnv({ ...base, LLM_PROVIDER: "extractive" }).LLM_PROVIDER).toBe("extractive");
+    expect(parseEnv(base).EXTRACTIVE_MIN_SIMILARITY).toBe(DEFAULT_EXTRACTIVE_MIN_SIMILARITY);
+    expect(parseEnv({ ...base, EXTRACTIVE_MIN_SIMILARITY: "0.8" }).EXTRACTIVE_MIN_SIMILARITY).toBe(0.8);
+    expect(() => parseEnv({ ...base, EXTRACTIVE_MIN_SIMILARITY: "2" })).toThrow(/EXTRACTIVE_MIN_SIMILARITY/);
   });
 
   it("reads MEDICAL_ABBREVIATIONS as a boolean, off by default", () => {
