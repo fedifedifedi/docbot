@@ -77,4 +77,47 @@ export const REFERENCE_QUESTIONS: ReferenceQuestion[] = [
     difficulty: "hors sujet",
     expected: null,
   },
+  // Off-topic but close to the hospital domain: the hardest case for a similarity threshold.
+  {
+    id: "Q11",
+    question: "Où peut-on se garer sur le parking de l'hôpital ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
+  {
+    id: "Q12",
+    question: "Quel est le tarif d'une consultation ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
+  {
+    id: "Q13",
+    question: "Quels sont les horaires des visites pour les proches ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
+  {
+    id: "Q14",
+    question: "Comment prendre un rendez-vous ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
+  {
+    id: "Q15",
+    question: "Peut-on payer par carte bancaire ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
+  {
+    id: "Q16",
+    question: "La cantine propose-t-elle des repas sans gluten ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
+  {
+    id: "Q17",
+    question: "Où se trouve la chambre de mon père ?",
+    difficulty: "hors sujet, domaine hospitalier",
+    expected: null,
+  },
 ];
