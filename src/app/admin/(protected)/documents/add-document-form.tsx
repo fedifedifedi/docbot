@@ -37,11 +37,11 @@ export function AddDocumentForm() {
         />
       </label>
       <label className={label}>
-        … ou fichier .txt / .md (1 Mo max)
+        … ou fichier .txt, .md (1 Mo max) ou .pdf (2 Mo max)
         <input
           type="file"
           name="file"
-          accept=".txt,.md,text/plain,text/markdown"
+          accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
           className="rounded-xl border border-dashed border-cream-300 bg-cream-50 p-2 text-sm font-normal text-stone-600 file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-sage-100 file:px-4 file:py-1.5 file:text-sm file:font-medium file:text-sage-800 hover:file:bg-sage-200 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-400 dark:file:bg-sage-900 dark:file:text-sage-100"
         />
       </label>

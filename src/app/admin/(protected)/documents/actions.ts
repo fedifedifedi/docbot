@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
 import { readDocumentInput } from "@/lib/documents/input";
+import { extractPdfText } from "@/lib/documents/pdf";
 import { createDocument, deleteDocument } from "@/lib/documents/service";
 
 const DOCUMENTS_PATH = "/admin/documents";
@@ -29,7 +30,7 @@ export async function addDocument(
     text: typeof raw.text === "string" ? raw.text : "",
   };
 
-  const input = await readDocumentInput(raw);
+  const input = await readDocumentInput(raw, { pdfToText: extractPdfText });
   if (!input.ok) return { ...keep, error: input.error, success: null };
 
   try {

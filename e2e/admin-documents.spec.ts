@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { makePdf } from "../tests/fixtures/pdf";
 import { loginAsAdmin, uniqueId } from "./helpers";
 
 test("admin adds, inspects and deletes documents", async ({ page }) => {
@@ -28,15 +29,36 @@ test("admin adds, inspects and deletes documents", async ({ page }) => {
   await page.getByRole("button", { name: "Ajouter le document" }).click();
   await expect(page.getByRole("status")).toHaveText(`« tarifs ${id} » ajouté (2 chunks).`);
 
-  // Unsupported file type is refused.
+  // PDF: its text is extracted and chunked.
+  await page.getByLabel(/fichier \.txt/).setInputFiles({
+    name: `garantie-${id}.pdf`,
+    mimeType: "application/pdf",
+    buffer: Buffer.from(makePdf(["La garantie couvre les pièces pendant deux ans."])),
+  });
+  await page.getByRole("button", { name: "Ajouter le document" }).click();
+  await expect(page.getByRole("status")).toHaveText(`« garantie ${id} » ajouté (1 chunk).`);
+  await expect(page.getByRole("row", { name: new RegExp(`garantie ${id}`) })).toContainText(
+    `Fichier (garantie-${id}.pdf)`,
+  );
+
+  // A file that is not a PDF despite its name is refused with a clear message.
   await page.getByLabel(/fichier \.txt/).setInputFiles({
     name: "contrat.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.7"),
   });
   await page.getByRole("button", { name: "Ajouter le document" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Impossible de lire ce PDF" })).toBeVisible();
+
+  // Unsupported file type is refused.
+  await page.getByLabel(/fichier \.txt/).setInputFiles({
+    name: "contrat.docx",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer: Buffer.from("PK"),
+  });
+  await page.getByRole("button", { name: "Ajouter le document" }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Seuls les fichiers .txt et .md sont acceptés." }),
+    page.getByRole("alert").filter({ hasText: "Seuls les fichiers .txt, .md et .pdf sont acceptés." }),
   ).toBeVisible();
 
   // Detail page shows the chunks.
@@ -60,4 +82,8 @@ test("admin adds, inspects and deletes documents", async ({ page }) => {
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: `Supprimer ${pastedTitle}` }).click();
   await expect(page.getByRole("row", { name: new RegExp(pastedTitle) })).toHaveCount(0);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: `Supprimer garantie ${id}` }).click();
+  await expect(page.getByRole("row", { name: new RegExp(`garantie ${id}`) })).toHaveCount(0);
 });

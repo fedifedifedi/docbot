@@ -19,7 +19,7 @@ Documents du projet : [SPEC.md](SPEC.md) (besoin reformulé, critères d'accepta
 | Besoin | Où |
 |---|---|
 | Espace admin protégé (email / mot de passe, admin créé par seed) | `/admin/login` — session par cookie signé, `proxy.ts` + vérification serveur |
-| Documents : ajout (texte collé ou `.txt` / `.md`), liste, suppression, découpage en chunks stockés en base | `/admin/documents` |
+| Documents : ajout (texte collé, `.txt` / `.md`, ou `.pdf` dont le texte est extrait), liste, suppression, découpage en chunks stockés en base | `/admin/documents` |
 | Chatbot public, réponses uniquement depuis les documents, sources citées | `/` et `POST /api/chat` |
 | Refus explicite quand l'information n'existe pas | garde-fou sans appel au LLM + prompt strict |
 | Historique des conversations consultable par l'admin | `/admin/conversations` |
@@ -189,6 +189,7 @@ Une erreur **502 « Application failed to respond »** a deux causes possibles :
 
 - Recherche lexicale : pas de synonymes ni de compréhension sémantique (« tarif » ne trouve pas « prix ») — c'est la contrainte de la v1 ; des embeddings (pgvector) seraient l'étape suivante, derrière la même fonction de recherche.
 - Chaque question est traitée seule : une relance du type « et le samedi ? » ne profite pas du contexte de la conversation.
+- PDF : seul le texte est extrait (pas d'OCR : un PDF scanné est refusé) ; les tableaux et les colonnes peuvent être remis en ordre de lecture approximatif.
 - Le limiteur de débit est en mémoire : valable pour une instance unique.
 - Session non révocable avant expiration (8 h), sauf suppression du compte ; pas de limitation des tentatives de connexion.
 - Les questions des visiteurs peuvent contenir des données personnelles ; aucune durée de conservation n'est définie.
