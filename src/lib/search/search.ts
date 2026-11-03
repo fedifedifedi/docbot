@@ -1,5 +1,8 @@
 import "server-only";
 import { getDb } from "@/lib/db";
+import { getEnv } from "@/lib/env";
+import { hybridSearch, type SearchMode } from "./hybrid";
+import { vectorSearch } from "./semantic";
 import { extractSearchTerms } from "./terms";
 
 export type SearchHit = {
@@ -8,17 +11,20 @@ export type SearchHit = {
   documentTitle: string;
   chunkIndex: number;
   content: string;
+  /** Higher is better: ts_rank_cd in fulltext mode, RRF score in hybrid mode. */
   rank: number;
 };
 
 export type SearchOptions = {
   /** Maximum number of chunks returned (top-k). */
   limit?: number;
-  /** Chunks must rank strictly above this score (ts_rank_cd). */
+  /** Full-text chunks must rank strictly above this score (ts_rank_cd). */
   minRank?: number;
 };
 
 export const DEFAULT_SEARCH_LIMIT = 5;
+/** Passages taken from each search before RRF fusion, in hybrid mode. */
+export const HYBRID_CANDIDATES = 20;
 
 /**
  * Full-text search over chunks (SPEC F4).
@@ -28,7 +34,7 @@ export const DEFAULT_SEARCH_LIMIT = 5;
  * has *all* its words in one chunk, so AND semantics would almost never match. Ranking
  * with `ts_rank_cd` puts chunks matching more (and closer) words first.
  */
-export async function searchChunks(
+export async function fulltextSearch(
   question: string,
   { limit = DEFAULT_SEARCH_LIMIT, minRank = 0 }: SearchOptions = {},
 ): Promise<SearchHit[]> {
@@ -59,4 +65,34 @@ export async function searchChunks(
     LIMIT ${limit}
   `;
   return rows.map((row) => ({ ...row, rank: Number(row.rank) }));
+}
+
+/** Search in an explicit mode (used by `searchChunks` and by the before/after evaluation). */
+export async function searchWithMode(
+  mode: SearchMode,
+  question: string,
+  options: SearchOptions = {},
+): Promise<SearchHit[]> {
+  if (mode === "fulltext") return fulltextSearch(question, options);
+  return hybridSearch(
+    question,
+    {
+      fulltext: (q, limit) => fulltextSearch(q, { ...options, limit }),
+      vector: (q, limit) => vectorSearch(q, limit),
+    },
+    {
+      limit: options.limit ?? DEFAULT_SEARCH_LIMIT,
+      candidates: HYBRID_CANDIDATES,
+      minSimilarity: getEnv().VECTOR_MIN_SIMILARITY,
+    },
+  );
+}
+
+/**
+ * The search used by the chat. Its signature is unchanged: the mode comes from SEARCH_MODE
+ * (`fulltext` by default, `hybrid` = full-text + embeddings fused with RRF). Either way, no
+ * relevant passage means an empty array, so the bot refuses without calling the LLM.
+ */
+export async function searchChunks(question: string, options: SearchOptions = {}): Promise<SearchHit[]> {
+  return searchWithMode(getEnv().SEARCH_MODE, question, options);
 }

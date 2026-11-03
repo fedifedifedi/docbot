@@ -2,10 +2,12 @@ import { z } from "zod";
 import { SEARCH_MODES } from "@/lib/search/hybrid";
 
 /**
- * Provisional value, to be replaced by the one measured on the reference questions
- * (`npm run measure:similarity`).
+ * Measured on the reference questions (`npm run measure:similarity`): off-topic questions
+ * close to the hospital domain reach 0.850 (« Comment prendre un rendez-vous ? »), so the
+ * threshold sits just above it. A safety choice: some right passages (0.822, 0.850) no longer
+ * get through the vector side, but no off-topic question does.
  */
-export const DEFAULT_VECTOR_MIN_SIMILARITY = 0.85;
+export const DEFAULT_VECTOR_MIN_SIMILARITY = 0.853;
 
 const envSchema = z
   .object({

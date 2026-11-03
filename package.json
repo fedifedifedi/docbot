@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:e2e": "playwright test",
+    "test:search-quality": "vitest run --config vitest.quality.config.mts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "model:download": "tsx scripts/download-model.ts",

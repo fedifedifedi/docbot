@@ -6,16 +6,16 @@
  */
 import { getDb } from "@/lib/db";
 import { judge, type Verdict } from "@/lib/search/evaluation";
-import { searchChunks } from "@/lib/search/search";
+import { getEnv } from "@/lib/env";
+import { searchWithMode } from "@/lib/search/search";
 import { DEMO_DOCUMENT } from "../fixtures/demo/document";
 import { REFERENCE_QUESTIONS } from "../fixtures/demo/questions";
 
 type Mode = "fulltext" | "hybrid";
 const MODES: Mode[] = ["fulltext", "hybrid"];
 
-async function run(mode: Mode, question: string) {
-  if (mode === "hybrid") return null; // Wired after the pgvector migration.
-  return searchChunks(question);
+function run(mode: Mode, question: string) {
+  return searchWithMode(mode, question);
 }
 
 function cell(text: string, width: number): string {
@@ -34,37 +34,35 @@ async function main() {
     for (const d of others) console.log(`  - ${d.title}`);
   }
 
-  const results: Record<Mode, (Verdict | null)[]> = { fulltext: [], hybrid: [] };
+  const results: Record<Mode, Verdict[]> = { fulltext: [], hybrid: [] };
   for (const mode of MODES) {
     for (const q of REFERENCE_QUESTIONS) {
       const hits = await run(mode, q.question);
-      results[mode].push(
-        hits &&
-          judge(q.expected && { documentTitle: DEMO_DOCUMENT.title, phrase: q.expected.phrase }, hits),
-      );
+      results[mode].push(judge(q.expected && { documentTitle: DEMO_DOCUMENT.title, phrase: q.expected.phrase }, hits));
     }
   }
 
-  const header = [cell("", 4), cell("Question", 50), cell("Attendu", 34), ...MODES.map((m) => cell(m, 46))];
+  console.log(`\nSeuil de similarité (mode hybrid) : ${getEnv().VECTOR_MIN_SIMILARITY}`);
+  const header = [cell("", 4), cell("Question", 46), cell("Attendu", 30), ...MODES.map((m) => cell(m, 44))];
   console.log(`\n${header.join(" │ ")}`);
   console.log(header.map((h) => "─".repeat(h.length)).join("─┼─"));
   REFERENCE_QUESTIONS.forEach((q, i) => {
     const expected = q.expected ? q.expected.section : "refus (0 passage)";
     const verdicts = MODES.map((mode) => {
       const v = results[mode][i];
-      return cell(v ? `${v.passed ? "✅" : "❌"} ${v.obtained}` : "— pas encore branché", 46);
+      return cell(`${v.passed ? "✅" : "❌"} ${v.obtained}`, 44);
     });
-    console.log([cell(q.id, 4), cell(q.question, 50), cell(expected, 34), ...verdicts].join(" │ "));
+    console.log([cell(q.id, 4), cell(q.question, 46), cell(expected, 30), ...verdicts].join(" │ "));
   });
 
+  const answerable = REFERENCE_QUESTIONS.map((q, i) => (q.expected ? i : -1)).filter((i) => i >= 0);
+  const offTopic = REFERENCE_QUESTIONS.map((q, i) => (q.expected ? -1 : i)).filter((i) => i >= 0);
+  const score = (mode: Mode, indexes: number[]) => `${indexes.filter((i) => results[mode][i].passed).length}/${indexes.length}`;
   console.log();
   for (const mode of MODES) {
-    const verdicts = results[mode];
-    if (verdicts.some((v) => v === null)) {
-      console.log(`Score ${mode} : non disponible (après la migration pgvector)`);
-    } else {
-      console.log(`Score ${mode} : ${verdicts.filter((v) => v!.passed).length}/${verdicts.length}`);
-    }
+    console.log(
+      `Score ${mode.padEnd(8)} : ${score(mode, [...answerable, ...offTopic])}  (bonne section : ${score(mode, answerable)}, refus corrects : ${score(mode, offTopic)})`,
+    );
   }
   await db.$disconnect();
 }
