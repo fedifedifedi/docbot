@@ -218,3 +218,20 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Accessibilité : toutes les animations sont coupées avec `prefers-reduced-motion` (règle globale) ; `CountUp` affiche directement la valeur finale dans ce cas, et le HTML serveur contient déjà la bonne valeur.
 - Défaut trouvé sur les captures : le dégradé derrière la zone de saisie formait un rectangle de la largeur de la colonne sur le fond animé → étendu à tout l'écran, avec `overflow-x: clip` sur `body` (pas `hidden`, qui casserait le `sticky`) ; largeur vérifiée à 390 px sur toutes les pages.
 - lint, typecheck, unitaires (103), build et e2e (4/4, en local) passent.
+
+### PR 10 — `feat/pdf-upload` : import de PDF
+
+**Demande humaine** : « si j'insère un PDF, il ne marche pas » (le PDF était hors périmètre v1 et refusé).
+
+**IA**
+- Extraction du texte côté serveur avec `unpdf` (PDF.js sans dépendance native), isolée dans `src/lib/documents/pdf.ts` ; la validation (`readDocumentInput`) reçoit l'extracteur en dépendance, pour rester légère et testable avec un faux.
+- Limites : PDF de 2 Mo max, texte extrait de 1 Mo max ; `bodySizeLimit` des Server Actions relevé de 3 à 4 Mo (PDF + texte collé + enveloppe multipart).
+- Messages explicites : PDF illisible ou protégé, PDF sans texte (scan : pas d'OCR), type non pris en charge (`.docx`…).
+- PDF de test générés dans le code (`tests/fixtures/pdf.ts`, offsets xref calculés, accents en WinAnsi) : aucun binaire versionné, partagés par les tests unitaires et l'e2e.
+- Tests : extraction réelle (accents, page sans texte, fichier non PDF), validation (taille, erreurs, octets transmis), e2e (vrai PDF accepté et découpé, faux PDF refusé, `.docx` refusé). SPEC et README mis à jour.
+
+**Vérification du résultat**
+- Risque principal : PDF.js une fois empaqueté par Next.js → vérifié par l'e2e sur le build de production.
+- Parcours réel sur localhost : PDF « politique de retour » ajouté dans l'admin, puis « Sous combien de jours puis-je retourner un article ? » sur le chat → réponse sourcée.
+- Fausse alerte écartée : accents cassés lors de la première démo, dus au script de démo (relu en Windows-1252 par Windows PowerShell), pas à l'application.
+- lint, typecheck, unitaires (115) et build passent ; e2e 4/4 en local.

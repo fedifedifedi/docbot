@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { MAX_DOCUMENT_BYTES, MAX_TITLE_LENGTH } from "./limits";
+import { MAX_DOCUMENT_BYTES, MAX_PDF_BYTES, MAX_TITLE_LENGTH } from "./limits";
 
-export { MAX_DOCUMENT_BYTES, MAX_TITLE_LENGTH };
-export const ALLOWED_EXTENSIONS = [".txt", ".md"] as const;
+export { MAX_DOCUMENT_BYTES, MAX_PDF_BYTES, MAX_TITLE_LENGTH };
+export const ALLOWED_EXTENSIONS = [".txt", ".md", ".pdf"] as const;
 
 export type DocumentInput = {
   title: string;
@@ -17,6 +17,11 @@ export type RawDocumentForm = {
   title: FormDataEntryValue | null;
   text: FormDataEntryValue | null;
   file: FormDataEntryValue | null;
+};
+
+/** PDF text extraction, injected so this module stays light and testable with a fake. */
+export type InputDeps = {
+  pdfToText?: (bytes: Uint8Array) => Promise<string>;
 };
 
 const titleSchema = z
@@ -41,34 +46,61 @@ function isNonEmptyFile(value: FormDataEntryValue | null): value is File {
   return typeof value === "object" && value !== null && value.size > 0;
 }
 
+type ContentResult = { ok: true; content: string } | { ok: false; error: string };
+
+async function readTextFile(file: File): Promise<ContentResult> {
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    return { ok: false, error: "Le fichier dépasse la taille maximale de 1 Mo." };
+  }
+  try {
+    return { ok: true, content: new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()) };
+  } catch {
+    return { ok: false, error: "Le fichier doit être un texte encodé en UTF-8." };
+  }
+}
+
+async function readPdfFile(file: File, pdfToText: InputDeps["pdfToText"]): Promise<ContentResult> {
+  if (!pdfToText) return { ok: false, error: "La lecture des PDF n'est pas disponible." };
+  if (file.size > MAX_PDF_BYTES) {
+    return { ok: false, error: "Le PDF dépasse la taille maximale de 2 Mo." };
+  }
+  let content: string;
+  try {
+    content = await pdfToText(new Uint8Array(await file.arrayBuffer()));
+  } catch {
+    return { ok: false, error: "Impossible de lire ce PDF (fichier abîmé ou protégé par un mot de passe)." };
+  }
+  if (!content.trim()) {
+    return { ok: false, error: "Ce PDF ne contient pas de texte lisible (document scanné ?)." };
+  }
+  if (new TextEncoder().encode(content).length > MAX_DOCUMENT_BYTES) {
+    return { ok: false, error: "Le texte extrait du PDF dépasse la taille maximale de 1 Mo." };
+  }
+  return { ok: true, content };
+}
+
 /**
  * Validates the "add document" form. A non-empty file takes precedence over pasted text.
  * Error messages are user-facing (French).
  */
-export async function readDocumentInput(form: RawDocumentForm): Promise<InputResult> {
+export async function readDocumentInput(form: RawDocumentForm, deps: InputDeps = {}): Promise<InputResult> {
   const title = titleSchema.safeParse(typeof form.title === "string" ? form.title : "");
   if (!title.success) return { ok: false, error: title.error.issues[0].message };
 
   if (isNonEmptyFile(form.file)) {
     const file = form.file;
-    if (!(ALLOWED_EXTENSIONS as readonly string[]).includes(extensionOf(file.name))) {
-      return { ok: false, error: "Seuls les fichiers .txt et .md sont acceptés." };
+    const extension = extensionOf(file.name);
+    if (!(ALLOWED_EXTENSIONS as readonly string[]).includes(extension)) {
+      return { ok: false, error: "Seuls les fichiers .txt, .md et .pdf sont acceptés." };
     }
-    if (file.size > MAX_DOCUMENT_BYTES) {
-      return { ok: false, error: "Le fichier dépasse la taille maximale de 1 Mo." };
-    }
-    let content: string;
-    try {
-      content = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
-    } catch {
-      return { ok: false, error: "Le fichier doit être un texte encodé en UTF-8." };
-    }
-    if (!content.trim()) return { ok: false, error: "Le fichier est vide." };
+    const read = extension === ".pdf" ? await readPdfFile(file, deps.pdfToText) : await readTextFile(file);
+    if (!read.ok) return read;
+    if (!read.content.trim()) return { ok: false, error: "Le fichier est vide." };
     return {
       ok: true,
       data: {
         title: title.data || titleFromFilename(file.name) || file.name,
-        content,
+        content: read.content,
         source: "FILE",
         filename: file.name,
       },

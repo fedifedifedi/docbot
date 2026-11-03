@@ -24,6 +24,7 @@ Il n'y a qu'**un seul admin**, créé par le seed à partir de `ADMIN_EMAIL` / `
 - **Ajout** par deux moyens :
   - texte collé (titre + contenu) ;
   - upload d'un fichier `.txt` ou `.md` (titre par défaut = nom du fichier). Taille max : 1 Mo. UTF-8.
+  - upload d'un fichier `.pdf` (2 Mo max) : le texte est extrait côté serveur (`unpdf`), puis traité comme un texte (1 Mo de texte max). Un PDF illisible ou protégé, ou sans texte (scan, pas d'OCR), est refusé avec un message explicite.
 - Refus explicite des autres extensions, des fichiers vides et des contenus vides.
 - À l'ajout, le contenu est **découpé en chunks** stockés en base, avec leur position (index) dans le document.
 - **Liste** : titre, source (collé / fichier), nombre de chunks, date d'ajout.
@@ -90,7 +91,7 @@ Il n'y a qu'**un seul admin**, créé par le seed à partir de `ADMIN_EMAIL` / `
 
 ## 6. Hors périmètre (v1)
 
-Embeddings / recherche vectorielle, PDF/DOCX, multi-admin et rôles, streaming des réponses, multilingue avancé, rate limiting élaboré, édition de document (supprimer + ré-ajouter suffit).
+Embeddings / recherche vectorielle, DOCX, OCR des PDF scannés, multi-admin et rôles, streaming des réponses, multilingue avancé, rate limiting élaboré, édition de document (supprimer + ré-ajouter suffit).
 
 ## 7. Critères d'acceptation
 
