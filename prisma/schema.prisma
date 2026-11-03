@@ -44,9 +44,16 @@ model Chunk {
   /// to_tsvector('docbot_fr', content) — French stemming + accent folding. Never written by the app.
   /// The dbgenerated() mirrors the GENERATED expression so Prisma sees no drift.
   tsv        Unsupported("tsvector")? @default(dbgenerated("to_tsvector('docbot_fr'::regconfig, content)"))
+  /// Embedding of the chunk (pgvector, 384 dimensions, Xenova/multilingual-e5-small), see the
+  /// chunk_embeddings migration. NULL until computed. The index below is HNSW (cosine) and is
+  /// created by that migration's SQL: Prisma has no HNSW type, but declaring the index keeps
+  /// `migrate diff` from dropping it. Always use migrations (`prisma db push` would build a
+  /// B-tree index here).
+  embedding  Unsupported("vector(384)")?
 
   @@unique([documentId, index])
   @@index([tsv], map: "chunks_tsv_idx", type: Gin)
+  @@index([embedding], map: "chunks_embedding_idx")
   @@map("chunks")
 }
 
