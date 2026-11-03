@@ -35,3 +35,6 @@ Thumbs.db
 
 # generated prisma client
 src/generated/
+
+# local embedding model files (npm run model:download)
+.models/
