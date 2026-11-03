@@ -43,7 +43,7 @@ Aucune clé API n'est nécessaire : par défaut le chatbot utilise le provider `
 
 ### Développement local
 
-Prérequis : Node.js ≥ 24, Docker.
+Prérequis : Node.js ≥ 24, et PostgreSQL 17 **avec l'extension [pgvector](https://github.com/pgvector/pgvector)** — soit via Docker (`docker compose up -d db` utilise l'image `pgvector/pgvector:pg17`), soit sur un PostgreSQL installé sur la machine (pgvector compilé et installé, voir la documentation de pgvector).
 
 ```bash
 cp .env.example .env
@@ -150,6 +150,8 @@ tests/unit · tests/integration · e2e/
 Le développement s'est fait en 8 PR, chacune relue avant merge (revues publiées en commentaire des PR).
 
 ## Déploiement (Railway)
+
+> **Prérequis pour tout déploiement : PostgreSQL avec l'extension pgvector.** Les migrations activent `vector` (recherche par embeddings) : sur une base qui ne la propose pas, `prisma migrate deploy` échoue et l'application ne démarre pas, même avec `SEARCH_MODE=fulltext`. Vérifier avant de déployer : `SELECT * FROM pg_available_extensions WHERE name = 'vector';` doit renvoyer une ligne. Sur Railway, utiliser un service PostgreSQL avec pgvector (et non l'image PostgreSQL standard).
 
 Déploiement continu via l'intégration GitHub de Railway : chaque merge dans `main` déclenche un build de l'image à partir du [Dockerfile](Dockerfile) (configuration dans [railway.json](railway.json)).
 

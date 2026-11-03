@@ -21,7 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17-alpine
+        # PostgreSQL 17 + the pgvector extension (vector search). Same image as docker-compose.yml.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: docbot
           POSTGRES_PASSWORD: docbot
