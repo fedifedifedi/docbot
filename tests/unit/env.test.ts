@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "@/lib/env";
+import { DEFAULT_EXTRACTIVE_MIN_SIMILARITY, DEFAULT_VECTOR_MIN_SIMILARITY, parseEnv } from "@/lib/env";
 
 const base = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
@@ -36,6 +36,36 @@ describe("parseEnv", () => {
       ANTHROPIC_MODEL: "claude-haiku-4-5-20251001",
     });
     expect(parseEnv({ ...base, ANTHROPIC_API_KEY: "" }).ANTHROPIC_API_KEY).toBeUndefined();
+  });
+
+  it("defaults SEARCH_MODE to fulltext and accepts hybrid", () => {
+    expect(parseEnv(base).SEARCH_MODE).toBe("fulltext");
+    expect(parseEnv({ ...base, SEARCH_MODE: "" }).SEARCH_MODE).toBe("fulltext");
+    expect(parseEnv({ ...base, SEARCH_MODE: "hybrid" }).SEARCH_MODE).toBe("hybrid");
+  });
+
+  it("refuses an unknown SEARCH_MODE instead of silently picking one", () => {
+    expect(() => parseEnv({ ...base, SEARCH_MODE: "vector" })).toThrow(/SEARCH_MODE/);
+  });
+
+  it("reads VECTOR_MIN_SIMILARITY as a number between 0 and 1", () => {
+    expect(parseEnv(base).VECTOR_MIN_SIMILARITY).toBe(DEFAULT_VECTOR_MIN_SIMILARITY);
+    expect(parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "0.82" }).VECTOR_MIN_SIMILARITY).toBe(0.82);
+    expect(() => parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "1.5" })).toThrow(/VECTOR_MIN_SIMILARITY/);
+    expect(() => parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "beaucoup" })).toThrow(/VECTOR_MIN_SIMILARITY/);
+  });
+
+  it("accepts the extractive provider and reads its threshold between 0 and 1", () => {
+    expect(parseEnv({ ...base, LLM_PROVIDER: "extractive" }).LLM_PROVIDER).toBe("extractive");
+    expect(parseEnv(base).EXTRACTIVE_MIN_SIMILARITY).toBe(DEFAULT_EXTRACTIVE_MIN_SIMILARITY);
+    expect(parseEnv({ ...base, EXTRACTIVE_MIN_SIMILARITY: "0.8" }).EXTRACTIVE_MIN_SIMILARITY).toBe(0.8);
+    expect(() => parseEnv({ ...base, EXTRACTIVE_MIN_SIMILARITY: "2" })).toThrow(/EXTRACTIVE_MIN_SIMILARITY/);
+  });
+
+  it("reads MEDICAL_ABBREVIATIONS as a boolean, off by default", () => {
+    expect(parseEnv(base).MEDICAL_ABBREVIATIONS).toBe(false);
+    expect(parseEnv({ ...base, MEDICAL_ABBREVIATIONS: "true" }).MEDICAL_ABBREVIATIONS).toBe(true);
+    expect(() => parseEnv({ ...base, MEDICAL_ABBREVIATIONS: "oui" })).toThrow(/MEDICAL_ABBREVIATIONS/);
   });
 
   it("requires a SESSION_SECRET of at least 32 characters", () => {

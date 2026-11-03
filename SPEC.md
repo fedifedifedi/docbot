@@ -44,6 +44,14 @@ Il n'y a qu'**un seul admin**, créé par le seed à partir de `ADMIN_EMAIL` / `
 - Retourne les **top-k** chunks (k = 5 par défaut) au-dessus d'un seuil minimal de pertinence.
 - Couverte par des tests (construction de requête en unitaire ; classement réel contre une base Postgres de test).
 
+### F4 bis — Recherche hybride (v2, `SEARCH_MODE=hybrid`, désactivée par défaut)
+- 100 % local et gratuit : embeddings calculés dans Node par Transformers.js (`Xenova/multilingual-e5-small`, 384 dimensions, préfixes `query:` / `passage:`), stockés avec pgvector (`vector(384)`, index HNSW cosinus). Aucune API, aucune clé, aucun réseau après le téléchargement du modèle.
+- Embedding de chaque chunk à l'indexation en mode `hybrid` ; script de rattrapage pour les chunks existants.
+- Recherche full-text et vectorielle en parallèle, résultats vectoriels sous `VECTOR_MIN_SIMILARITY` écartés, fusion **RRF** (k = 60), top 5. L'interface de `searchChunks()` est inchangée.
+- Garde-fou conservé : question hors sujet → zéro passage côté vectoriel → refus sans appel au LLM. Seuil mesuré sur des questions de référence (`npm run measure:similarity`).
+- Option : dictionnaire d'abréviations médicales appliqué à la question avant la recherche (`MEDICAL_ABBREVIATIONS=true`).
+- `SEARCH_MODE=fulltext` (défaut) rétablit la recherche v1. Évaluation avant/après : `npm run eval:search`.
+
 ### F5 — Chatbot public
 - Interface de chat sur `/` : saisie de la question, affichage de la réponse et des **sources** (titre du document + extrait du chunk).
 - La conversation est conservée côté serveur (une conversation = une suite de messages ; identifiant conservé côté client pour enchaîner les questions).
@@ -91,7 +99,7 @@ Il n'y a qu'**un seul admin**, créé par le seed à partir de `ADMIN_EMAIL` / `
 
 ## 6. Hors périmètre (v1)
 
-Embeddings / recherche vectorielle, DOCX, OCR des PDF scannés, multi-admin et rôles, streaming des réponses, multilingue avancé, rate limiting élaboré, édition de document (supprimer + ré-ajouter suffit).
+Reranker et modèles d'embeddings plus grands, DOCX, OCR des PDF scannés, multi-admin et rôles, streaming des réponses, multilingue avancé, rate limiting élaboré, édition de document (supprimer + ré-ajouter suffit).
 
 ## 7. Critères d'acceptation
 

@@ -9,7 +9,7 @@ Assistant RAG pour PME : admin qui gère des documents, chatbot public qui répo
 ## Stack
 
 - Next.js (App Router, TypeScript strict, Server Actions + Route Handlers)
-- Prisma + PostgreSQL 17 (Docker) — recherche full-text Postgres (`tsvector` + GIN), **pas d'embeddings**
+- Prisma + PostgreSQL 17 + **pgvector** (Docker : `pgvector/pgvector:pg17`) — recherche full-text Postgres (`tsvector` + GIN), et en option recherche hybride (`SEARCH_MODE=hybrid`) : embeddings **locaux** (Transformers.js, `Xenova/multilingual-e5-small`, fichiers dans `.models/`) + fusion RRF. Aucune API payante pour les embeddings.
 - Tailwind CSS
 - Validation : zod · Hash : bcryptjs · Session : cookie signé (jose)
 - LLM : interface `LLMProvider` (`src/lib/llm/`), choisi par `LLM_PROVIDER=mock|anthropic` (défaut `mock`)
@@ -48,6 +48,10 @@ npm run typecheck                # next typegen + tsc --noEmit
 npm test                         # Vitest unitaires
 npm run test:integration         # Vitest contre Postgres (DATABASE_URL de test — vide documents et conversations)
 npm run test:e2e                 # Playwright (LLM_PROVIDER=mock)
+npm run test:search-quality      # qualité de recherche avec le vrai modèle (local uniquement, pas en CI)
+npm run model:download           # fichiers du modèle d'embeddings dans .models/ (une fois)
+npm run embeddings:backfill      # embeddings des chunks qui n'en ont pas
+npm run eval:search              # tableau comparatif full-text / hybride / hybride + dictionnaire
 npm run build                    # build de prod
 npm run db:migrate               # prisma migrate dev (nouvelle migration)
 npm run db:deploy                # prisma migrate deploy

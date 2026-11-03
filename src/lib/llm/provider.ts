@@ -12,7 +12,8 @@ export type GenerateAnswerInput = {
 
 /**
  * The only LLM surface the application depends on. Implementations: `mock` (deterministic,
- * offline — tests, CI, demo without a key) and `anthropic` (Claude).
+ * offline — tests, CI, demo without a key), `anthropic` (Claude) and `extractive` (local,
+ * quotes the closest sentences using the embedding model).
  */
 export interface LLMProvider {
   readonly name: string;
