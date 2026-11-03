@@ -235,3 +235,26 @@ Ce projet est développé avec **Claude Code** (modèle Claude Opus 5.5) comme a
 - Parcours réel sur localhost : PDF « politique de retour » ajouté dans l'admin, puis « Sous combien de jours puis-je retourner un article ? » sur le chat → réponse sourcée.
 - Fausse alerte écartée : accents cassés lors de la première démo, dus au script de démo (relu en Windows-1252 par Windows PowerShell), pas à l'application.
 - lint, typecheck, unitaires (115) et build passent ; e2e 4/4 en local.
+
+### PR 11 — `feat/hybrid-search` : recherche hybride (full-text + embeddings)
+
+**Décisions humaines** : 100 % gratuit et local (aucune API ni clé pour les embeddings) ; Transformers.js + `Xenova/multilingual-e5-small` validé ; travail uniquement en local (Railway abandonné faute de crédit, pgvector documenté comme prérequis de tout déploiement) ; avancer étape par étape avec validation et commit à chaque étape ; document de test Markdown fictif à 10 sections plutôt que le PDF découpé grossièrement ; ajout de 7 questions hors sujet proches du domaine hospitalier avant de figer le seuil ; seuil prudent 0,853 ; dictionnaire d'abréviations dans une étape séparée pour montrer l'avant/après ; stratégie de tests (faux modèle en CI, vrai modèle en local).
+
+**IA**
+- Vérification de l'environnement avant tout code : pgvector absent (local, CI, Docker), conflit avec la règle « aucun test ne nécessite de réseau », document existant découpé en 3 chunks mêlant plusieurs sections — signalés et tranchés par l'humain.
+- Installation de Transformers.js malgré le réseau instable : résolution des dépendances sans téléchargement (`--package-lock-only`), archives récupérées avec reprise + vérification sha512, injectées dans le cache npm ; script `npm run model:download` (reprise HTTP Range, SHA-256) ; modèle chargé uniquement depuis `.models/` (`allowRemoteModels = false`).
+- Migration pgvector (`vector(384)`, index HNSW cosinus) ; Prisma n'ayant pas de type HNSW, l'index est créé en SQL et déclaré dans le schéma pour que le contrôle de dérive de la CI ne le supprime pas (vérifié : « No difference detected »).
+- Embeddings calculés avant l'écriture et stockés dans la même transaction (un échec du modèle n'enregistre rien) ; rattrapage idempotent ; mode `fulltext` sans chargement du modèle (CI, e2e).
+- Logique pure séparée et testée avec un faux modèle déterministe : fusion RRF, seuil, intervalle de seuil, dictionnaire, évaluation. `searchChunks()` garde son interface.
+- Outils de mesure : `eval:search` (tableau avant/après), `measure:similarity` (similarités et intervalle de seuil), `test:search-quality` (vrai modèle, local).
+
+**Mesures et résultats (honnêtes)**
+- Similarités E5 tassées (0,78–0,91) : 0,81 tenait sur 2 questions hors sujet, plus sur 9 (« prendre un rendez-vous » à 0,850). Score relatif (écart à la moyenne, z-score) testé : ne sépare pas non plus. Seuil 0,853 retenu comme choix de sécurité, marge ≈ 0,003.
+- IDM : le modèle ne relie pas l'abréviation à « infarctus du myocarde » (bonne section 3e) ; mesuré et dit, pas contourné par une règle de test ; corrigé par un dictionnaire général de 24 abréviations.
+- `eval:search` : full-text 9/17 → hybride 12/17 → hybride + dictionnaire 13/17, aucune régression (vérifié aussi par `test:search-quality`).
+
+**Problèmes rencontrés et corrections**
+- pgvector non « trusted » : le rôle applicatif ne peut pas l'activer ; activé une fois par l'administrateur (commande fournie), la migration reste `IF NOT EXISTS`.
+- Ancien protocole PDF puis 5 documents laissés par les e2e en base de démo : ils faussaient l'évaluation (repérés grâce à la note « autres documents en concurrence » du script) ; supprimés.
+- E2E locaux en parallèle : connexion admin au-delà du délai ; reproduit à l'identique sur `main` (pas une régression), passent avec un seul worker et en CI.
+- Erreur de l'IA : un mot de passe local affiché en lisant une capture d'échec Playwright ; captures supprimées, signalé à l'humain.

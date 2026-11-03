@@ -26,7 +26,7 @@ Documents du projet : [SPEC.md](SPEC.md) (besoin reformulé, critères d'accepta
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · Prisma 7 · PostgreSQL 17 (recherche full-text, pas d'embeddings) · Claude (SDK `@anthropic-ai/sdk`) derrière une interface `LLMProvider` · Vitest · Playwright · GitHub Actions · Docker · Railway
+Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 · Prisma 7 · PostgreSQL 17 (recherche full-text + pgvector) · Transformers.js (embeddings locaux, `Xenova/multilingual-e5-small`) · Claude (SDK `@anthropic-ai/sdk`) derrière une interface `LLMProvider` · Vitest · Playwright · GitHub Actions · Docker · Railway
 
 ## Démarrage rapide
 
@@ -58,7 +58,10 @@ npm run dev
 
 ```
 Visiteur ─► /  ─► POST /api/chat ─► limite 20 req/min/client
-                                   ─► recherche full-text PostgreSQL (top 5 chunks)
+                                   ─► [dictionnaire d'abréviations : IDM → IDM (infarctus du myocarde)]
+                                   ─► SEARCH_MODE=fulltext : recherche full-text PostgreSQL (top 5)
+                                      SEARCH_MODE=hybrid   : full-text ∥ vectorielle (pgvector, seuil)
+                                                             └─ fusion RRF (top 5)
                                         └─ aucun chunk ─► « Je ne trouve pas… » (LLM non appelé)
                                    ─► LLMProvider (mock | anthropic) : extraits numérotés, citations [n]
                                         └─ « non trouvé » ─► réponse sans source
@@ -67,10 +70,46 @@ Admin ───► proxy.ts (cookie) ─► requireAdmin() ─► documents (dé
 ```
 
 1. **Indexation** : un document est découpé en chunks (~800 caractères, 1 200 max) par paragraphes et sections Markdown, avec un chevauchement de ~100 caractères ; chaque chunk d'une section commence par son titre. PostgreSQL calcule pour chaque chunk un `tsvector` (configuration `docbot_fr` : racinisation française, accents ignorés) dans une colonne générée, indexée en GIN.
-2. **Recherche** : les mots de la question (hors mots vides) sont combinés en **OU** — une question en langage naturel a rarement tous ses mots dans un même passage — puis les chunks sont classés par `ts_rank_cd`.
+2. **Recherche** : les mots de la question (hors mots vides) sont combinés en **OU** — une question en langage naturel a rarement tous ses mots dans un même passage — puis les chunks sont classés par `ts_rank_cd`. En mode `hybrid`, une recherche par embeddings tourne en parallèle et les deux classements sont fusionnés (voir [Où est le RAG](#où-est-le-rag)).
 3. **Garde-fou** : si aucun chunk ne correspond, DocBot répond « Je ne trouve pas cette information dans la documentation. » **sans appeler le LLM**.
 4. **Génération** : sinon, le LLM reçoit les extraits numérotés (balisés, traités comme des données) et doit répondre uniquement à partir d'eux en citant `[n]` ; s'ils ne suffisent pas, il renvoie la phrase de refus et aucune source n'est affichée.
 5. **Historique** : chaque échange est enregistré avec un instantané des sources citées, lisible même après suppression du document.
+
+## Où est le RAG
+
+Le RAG se fait en trois temps : **indexer** les documents, **retrouver** les bons passages (*Retrieval*), **générer** la réponse à partir d'eux (*Generation*).
+
+| Étape | Fichiers | Rôle |
+|---|---|---|
+| Indexation | [chunk.ts](src/lib/documents/chunk.ts), [service.ts](src/lib/documents/service.ts), migrations [chunk_fts](prisma/migrations/20261001100000_chunk_fts/migration.sql) et [chunk_embeddings](prisma/migrations/20261103100000_chunk_embeddings/migration.sql) | Découpage en chunks ; `tsvector` généré + index GIN ; en mode `hybrid`, embedding de chaque chunk (`vector(384)`, index HNSW cosinus), calculé avant l'écriture et stocké dans la même transaction |
+| Recherche | [search.ts](src/lib/search/search.ts) (`searchChunks`, interface inchangée), [hybrid.ts](src/lib/search/hybrid.ts) (RRF, seuil), [semantic.ts](src/lib/search/semantic.ts) (pgvector), [abbreviations.ts](src/lib/search/abbreviations.ts) | Full-text seul, ou hybride : full-text et vectorielle en parallèle, résultats vectoriels sous le seuil écartés, fusion RRF, top 5 |
+| Modèle d'embeddings | [local.ts](src/lib/embeddings/local.ts), [config.ts](src/lib/embeddings/config.ts), [embedder.ts](src/lib/embeddings/embedder.ts) | Transformers.js (ONNX Runtime, CPU), fichiers lus uniquement dans `.models/` (`allowRemoteModels = false`) |
+| Garde-fou + génération | [answer.ts](src/lib/chat/answer.ts), [prompt.ts](src/lib/llm/prompt.ts), [src/lib/llm/](src/lib/llm/) | Aucun passage → refus **sans appeler le LLM** ; sinon extraits numérotés, citations `[n]`, phrase de refus exacte |
+
+### Recherche hybride
+
+- **Pourquoi** : la recherche full-text ne trouve que les mots présents dans le document. « pacemaker » ne trouve pas « stimulateur cardiaque », « enceinte » ne trouve pas « grossesse ». Les embeddings représentent le **sens** d'un texte par un vecteur : deux textes proches en sens ont des vecteurs proches, même sans mot commun. Les deux recherches se complètent : le full-text est précis sur les termes exacts, la recherche vectorielle comprend les reformulations.
+- **Modèle** : `Xenova/multilingual-e5-small` — gratuit, open source, multilingue (français compris), 384 dimensions, 113 Mo en version quantifiée 8 bits. Il tourne dans Node avec Transformers.js, sans service à part ni clé API ; une fois téléchargé (`npm run model:download`), tout fonctionne **hors ligne**. Les modèles E5 exigent des préfixes : `query: ` pour la question, `passage: ` pour les chunks.
+- **Stockage** : pgvector dans PostgreSQL (pas de base vectorielle séparée). Index **HNSW** (graphe de plus proches voisins), distance cosinus ; contrairement à IVFFlat, il fonctionne dès la table vide.
+- **Fusion RRF** (*Reciprocal Rank Fusion*, Cormack et al. 2009) : chaque chunk reçoit `Σ 1 / (60 + rang)` sur les listes où il apparaît. Seuls les **rangs** comptent, ce qui évite de comparer des scores de natures différentes (`ts_rank_cd` et similarité cosinus) ; un chunk bien classé par les deux recherches passe devant.
+- **Seuil** (`VECTOR_MIN_SIMILARITY`, défaut **0,853**) : les résultats vectoriels moins similaires sont écartés, pour qu'une question hors sujet donne toujours zéro passage côté vectoriel, donc un refus sans appel au LLM. Il a été **mesuré** (`npm run measure:similarity`) sur 17 questions de référence : les questions hors sujet proches du domaine hospitalier montent jusqu'à **0,850** (« Comment prendre un rendez-vous ? »), alors que certaines bonnes sections sont à 0,822. Aucun seuil ne sépare parfaitement les deux groupes ; il est placé **du côté de la sécurité** : refuser à tort plutôt que répondre hors sujet. Marge faible (≈ 0,003) : valeur propre à ce corpus, à re-mesurer sur d'autres documents.
+- **Dictionnaire d'abréviations** (`MEDICAL_ABBREVIATIONS=true`) : 24 abréviations médicales courantes (IDM, IRM, TDM, AVC, DFG…). Avant les deux recherches, la forme longue est ajoutée à côté de l'abréviation (« IDM » → « IDM (infarctus du myocarde) »). Mots entiers en majuscules uniquement, pour ne jamais modifier un mot français (« ira »).
+- **Retour arrière** : `SEARCH_MODE=fulltext` (défaut) rétablit instantanément l'ancienne recherche.
+
+### Résultats (`npm run eval:search`)
+
+Sur le protocole fictif [fixtures/demo/protocole-imagerie.md](fixtures/demo/protocole-imagerie.md) (10 sections, un sujet chacune) et les questions de [fixtures/demo/questions.ts](fixtures/demo/questions.ts). Critère : le **1er** résultat contient la phrase attendue ; hors sujet : **zéro** passage.
+
+| | full-text | hybride | hybride + dictionnaire |
+|---|---|---|---|
+| **Total (17)** | 9 | 12 | **13** |
+| Bonne section (8) | 2 | 5 | **6** |
+| Refus corrects (9) | 7 | 7 | 7 |
+
+- Gagnées par l'hybride : pacemaker → stimulateur cardiaque, femme enceinte / radio → grossesse, peur d'être enfermé → claustrophobie. Gagnée par le dictionnaire : IDM → infarctus du myocarde.
+- Restent en échec : deux paraphrases dont la bonne section est sous le seuil (identitovigilance 0,822, radioprotection 0,850) ; deux questions hors sujet qui passent par le **full-text** (« carte bancaire » ↔ « carte du porteur », « propose » ↔ « test proposé ») : la recherche en OU retient un chunk dès qu'un mot correspond, et le seuil ne filtre que le côté vectoriel.
+
+Pour la démo en mode hybride : `npm run model:download` (une fois), puis dans `.env` `SEARCH_MODE="hybrid"` et `MEDICAL_ABBREVIATIONS="true"`, `npm run demo:load`, `npm run embeddings:backfill`, `npm run dev`.
 
 ### Providers LLM
 
@@ -93,7 +132,8 @@ Le code applicatif ne dépend que de l'interface [`LLMProvider`](src/lib/llm/pro
 | `ANTHROPIC_API_KEY` | si `anthropic` | Clé API Claude |
 | `ANTHROPIC_MODEL` | non | Modèle Claude (défaut `claude-haiku-4-5-20251001`) |
 | `SEARCH_MODE` | non | `fulltext` (défaut) ou `hybrid` (full-text + embeddings, fusion RRF) ; toute autre valeur est refusée au démarrage |
-| `VECTOR_MIN_SIMILARITY` | non | Mode `hybrid` : similarité cosinus minimale d'un résultat vectoriel (entre 0 et 1) |
+| `VECTOR_MIN_SIMILARITY` | non | Mode `hybrid` : similarité cosinus minimale d'un résultat vectoriel, entre 0 et 1 (défaut `0.853`, mesuré — voir [Où est le RAG](#où-est-le-rag)) |
+| `MEDICAL_ABBREVIATIONS` | non | `true` : ajoute la forme longue des abréviations médicales à la question avant la recherche (défaut `false`) |
 | `EMBEDDING_MODEL` | non | Modèle d'embeddings Hugging Face (défaut `Xenova/multilingual-e5-small`) |
 | `EMBEDDING_MODEL_DIR` | non | Dossier local des fichiers du modèle (défaut `.models`) |
 | `PORT` | Railway | Port d'écoute ; doit correspondre au port cible du domaine public (voir Dépannage) |
@@ -110,8 +150,9 @@ Aucun secret n'est versionné : seul [.env.example](.env.example) est dans le d�
 
 | Commande | Contenu | Base |
 |---|---|---|
-| `npm test` | **Unitaires** (97) : découpage en chunks, validation des documents, extraction des termes de recherche, citations, pipeline de réponse (faux search / faux LLM), provider mock, provider Anthropic via un `fetch` factice, session, mots de passe, limiteur | non |
-| `npm run test:integration` | **Intégration** (17) : recherche full-text réelle (OU, racinisation, accents, classement, mots vides, opérateurs tsquery, cascade), réponse de bout en bout recherche + provider mock (scénario « Quel est le délai de livraison ? »), persistance et historique des conversations — **vide les documents et conversations** | PostgreSQL migré |
+| `npm test` | **Unitaires** (168) : découpage en chunks, validation des documents et PDF, extraction des termes de recherche, fusion RRF, seuil, dictionnaire d'abréviations, évaluation, citations, pipeline de réponse (faux search / faux LLM), providers, session, mots de passe, limiteur — avec un **faux modèle d'embeddings déterministe** (aucun téléchargement) | non |
+| `npm run test:integration` | **Intégration** (24) : recherche full-text réelle, embeddings et recherche vectorielle sur **pgvector** (faux modèle), rattrapage des embeddings, réponse de bout en bout, persistance et historique — **vide les documents et conversations** | PostgreSQL + pgvector migré |
+| `npm run test:search-quality` | **Qualité de recherche, vrai modèle** (25) : questions de référence, refus hors sujet, aucune régression full-text → hybride → dictionnaire. **Local uniquement** (pas en CI : il faut les fichiers du modèle) ; recharge le document de démo, ne touche à rien d'autre | base locale + `npm run model:download` |
 | `npm run test:e2e` | **Playwright** (4) : authentification, gestion des documents, **parcours complet de SPEC §5** (ajout d'un document → réponse sourcée → refus sans source → conversation retrouvée dans l'historique), validation de l'API | build + base seedée, `LLM_PROVIDER=mock` |
 
 Aucun test ne nécessite de clé API ni d'accès réseau externe.
@@ -130,6 +171,7 @@ Aucun test ne nécessite de clé API ni d'accès réseau externe.
 | `npm run model:download` | Télécharger le modèle d'embeddings dans `.models/` (une fois ; ensuite tout fonctionne hors ligne) |
 | `npm run demo:load` | Charger le protocole d'imagerie fictif de démonstration ([fixtures/demo/protocole-imagerie.md](fixtures/demo/protocole-imagerie.md)) dans la base locale |
 | `npm run embeddings:backfill` | Calculer les embeddings des morceaux qui n'en ont pas (documents ajoutés en mode `fulltext`) ; relançable sans risque |
+| `npm run measure:similarity` | Mesurer, avec le vrai modèle, la similarité de chaque question de référence avec chaque section, et l'intervalle possible pour le seuil |
 | `npm run eval:search` | Poser les questions de référence ([fixtures/demo/questions.ts](fixtures/demo/questions.ts)) et comparer les modes de recherche |
 
 ## Structure
@@ -197,7 +239,9 @@ Une erreur **502 « Application failed to respond »** a deux causes possibles :
 
 ## Limites connues (v1)
 
-- Recherche lexicale : pas de synonymes ni de compréhension sémantique (« tarif » ne trouve pas « prix ») — c'est la contrainte de la v1 ; des embeddings (pgvector) seraient l'étape suivante, derrière la même fonction de recherche.
+- Recherche : en mode `fulltext` (défaut), pas de synonymes ; le mode `hybrid` les comprend en partie, mais son seuil a une marge faible et a été mesuré sur un petit jeu (17 questions, 11 chunks) : à re-mesurer sur un vrai corpus (centaines de questions annotées, précision / rappel). Le full-text en OU peut retenir un passage hors sujet sur un seul mot commun. Pistes : modèle plus grand (`multilingual-e5-base`), reranker, seuil de rang côté full-text.
+- Changer de mode `fulltext` → `hybrid` demande de calculer les embeddings existants (`npm run embeddings:backfill`) ; en `hybrid`, un document ajouté est vectorisé à l'indexation (quelques ms par chunk sur CPU).
+- `npm run test:e2e` laisse en base un document « Support Zorblax… » par exécution : à lancer sur une base de test, pas sur la base de démo. En local, les fichiers e2e lancés en parallèle peuvent dépasser le délai de connexion (bcrypt) ; `--workers=1` les fait passer.
 - Chaque question est traitée seule : une relance du type « et le samedi ? » ne profite pas du contexte de la conversation.
 - PDF : seul le texte est extrait (pas d'OCR : un PDF scanné est refusé) ; les tableaux et les colonnes peuvent être remis en ordre de lecture approximatif.
 - Le limiteur de débit est en mémoire : valable pour une instance unique.
