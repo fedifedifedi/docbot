@@ -1,6 +1,7 @@
 import "server-only";
 import { getDb } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { expandAbbreviations } from "./abbreviations";
 import { hybridSearch, type SearchMode } from "./hybrid";
 import { vectorSearch } from "./semantic";
 import { extractSearchTerms } from "./terms";
@@ -67,12 +68,19 @@ export async function fulltextSearch(
   return rows.map((row) => ({ ...row, rank: Number(row.rank) }));
 }
 
-/** Search in an explicit mode (used by `searchChunks` and by the before/after evaluation). */
-export async function searchWithMode(
-  mode: SearchMode,
-  question: string,
+export type SearchConfig = {
+  mode: SearchMode;
+  /** Add the long form of medical abbreviations to the question before both searches. */
+  abbreviations: boolean;
+};
+
+/** Search with an explicit configuration (used by `searchChunks` and by the evaluation). */
+export async function searchWithConfig(
+  { mode, abbreviations }: SearchConfig,
+  rawQuestion: string,
   options: SearchOptions = {},
 ): Promise<SearchHit[]> {
+  const question = abbreviations ? expandAbbreviations(rawQuestion) : rawQuestion;
   if (mode === "fulltext") return fulltextSearch(question, options);
   return hybridSearch(
     question,
@@ -90,9 +98,11 @@ export async function searchWithMode(
 
 /**
  * The search used by the chat. Its signature is unchanged: the mode comes from SEARCH_MODE
- * (`fulltext` by default, `hybrid` = full-text + embeddings fused with RRF). Either way, no
- * relevant passage means an empty array, so the bot refuses without calling the LLM.
+ * (`fulltext` by default, `hybrid` = full-text + embeddings fused with RRF) and the
+ * abbreviation dictionary from MEDICAL_ABBREVIATIONS. Either way, no relevant passage means
+ * an empty array, so the bot refuses without calling the LLM.
  */
 export async function searchChunks(question: string, options: SearchOptions = {}): Promise<SearchHit[]> {
-  return searchWithMode(getEnv().SEARCH_MODE, question, options);
+  const env = getEnv();
+  return searchWithConfig({ mode: env.SEARCH_MODE, abbreviations: env.MEDICAL_ABBREVIATIONS }, question, options);
 }

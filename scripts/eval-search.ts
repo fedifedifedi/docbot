@@ -1,25 +1,32 @@
 /**
  * Asks the reference questions (fixtures/demo/questions.ts) to the search and prints a
- * comparison table. Needs the demo document in the local database (`npm run demo:load`).
+ * before/after table: full-text, hybrid, hybrid + medical abbreviations. Needs the demo
+ * document and its embeddings in the local database (`npm run demo:load`,
+ * `npm run embeddings:backfill`).
  *
  *   npm run eval:search
  */
 import { getDb } from "@/lib/db";
-import { judge, type Verdict } from "@/lib/search/evaluation";
 import { getEnv } from "@/lib/env";
-import { searchWithMode } from "@/lib/search/search";
+import { judge, type Verdict } from "@/lib/search/evaluation";
+import { searchWithConfig, type SearchConfig } from "@/lib/search/search";
 import { DEMO_DOCUMENT } from "../fixtures/demo/document";
 import { REFERENCE_QUESTIONS } from "../fixtures/demo/questions";
 
-type Mode = "fulltext" | "hybrid";
-const MODES: Mode[] = ["fulltext", "hybrid"];
-
-function run(mode: Mode, question: string) {
-  return searchWithMode(mode, question);
-}
+const COLUMNS: { label: string; config: SearchConfig }[] = [
+  { label: "full-text", config: { mode: "fulltext", abbreviations: false } },
+  { label: "hybride", config: { mode: "hybrid", abbreviations: false } },
+  { label: "hybride + dictionnaire", config: { mode: "hybrid", abbreviations: true } },
+];
+const WIDTH = 36;
 
 function cell(text: string, width: number): string {
   return text.length > width ? `${text.slice(0, width - 1)}…` : text.padEnd(width);
+}
+
+/** Section of the first hit, without the document title (all from the demo document). */
+function short(verdict: Verdict): string {
+  return verdict.obtained.replace(` (${DEMO_DOCUMENT.title})`, "");
 }
 
 async function main() {
@@ -34,34 +41,37 @@ async function main() {
     for (const d of others) console.log(`  - ${d.title}`);
   }
 
-  const results: Record<Mode, Verdict[]> = { fulltext: [], hybrid: [] };
-  for (const mode of MODES) {
+  const results = new Map<string, Verdict[]>();
+  for (const { label, config } of COLUMNS) {
+    const verdicts: Verdict[] = [];
     for (const q of REFERENCE_QUESTIONS) {
-      const hits = await run(mode, q.question);
-      results[mode].push(judge(q.expected && { documentTitle: DEMO_DOCUMENT.title, phrase: q.expected.phrase }, hits));
+      const hits = await searchWithConfig(config, q.question);
+      verdicts.push(judge(q.expected && { documentTitle: DEMO_DOCUMENT.title, phrase: q.expected.phrase }, hits));
     }
+    results.set(label, verdicts);
   }
 
-  console.log(`\nSeuil de similarité (mode hybrid) : ${getEnv().VECTOR_MIN_SIMILARITY}`);
-  const header = [cell("", 4), cell("Question", 46), cell("Attendu", 30), ...MODES.map((m) => cell(m, 44))];
+  console.log(`\nSeuil de similarité (modes hybrides) : ${getEnv().VECTOR_MIN_SIMILARITY}`);
+  const header = [cell("", 4), cell("Question", 40), cell("Attendu", 26), ...COLUMNS.map((c) => cell(c.label, WIDTH))];
   console.log(`\n${header.join(" │ ")}`);
   console.log(header.map((h) => "─".repeat(h.length)).join("─┼─"));
   REFERENCE_QUESTIONS.forEach((q, i) => {
     const expected = q.expected ? q.expected.section : "refus (0 passage)";
-    const verdicts = MODES.map((mode) => {
-      const v = results[mode][i];
-      return cell(`${v.passed ? "✅" : "❌"} ${v.obtained}`, 44);
+    const verdicts = COLUMNS.map(({ label }) => {
+      const v = results.get(label)![i];
+      return cell(`${v.passed ? "✅" : "❌"} ${short(v)}`, WIDTH);
     });
-    console.log([cell(q.id, 4), cell(q.question, 46), cell(expected, 30), ...verdicts].join(" │ "));
+    console.log([cell(q.id, 4), cell(q.question, 40), cell(expected, 26), ...verdicts].join(" │ "));
   });
 
-  const answerable = REFERENCE_QUESTIONS.map((q, i) => (q.expected ? i : -1)).filter((i) => i >= 0);
-  const offTopic = REFERENCE_QUESTIONS.map((q, i) => (q.expected ? -1 : i)).filter((i) => i >= 0);
-  const score = (mode: Mode, indexes: number[]) => `${indexes.filter((i) => results[mode][i].passed).length}/${indexes.length}`;
+  const answerable = REFERENCE_QUESTIONS.flatMap((q, i) => (q.expected ? [i] : []));
+  const offTopic = REFERENCE_QUESTIONS.flatMap((q, i) => (q.expected ? [] : [i]));
   console.log();
-  for (const mode of MODES) {
+  for (const { label } of COLUMNS) {
+    const verdicts = results.get(label)!;
+    const score = (indexes: number[]) => `${indexes.filter((i) => verdicts[i].passed).length}/${indexes.length}`;
     console.log(
-      `Score ${mode.padEnd(8)} : ${score(mode, [...answerable, ...offTopic])}  (bonne section : ${score(mode, answerable)}, refus corrects : ${score(mode, offTopic)})`,
+      `Score ${label.padEnd(23)} : ${score([...answerable, ...offTopic])}  (bonne section : ${score(answerable)}, refus corrects : ${score(offTopic)})`,
     );
   }
   await db.$disconnect();

@@ -26,6 +26,11 @@ const envSchema = z
       .min(0, "VECTOR_MIN_SIMILARITY must be between 0 and 1")
       .max(1, "VECTOR_MIN_SIMILARITY must be between 0 and 1")
       .default(DEFAULT_VECTOR_MIN_SIMILARITY),
+    /** Adds the long form of medical abbreviations to the question before searching (off by default). */
+    MEDICAL_ABBREVIATIONS: z
+      .enum(["true", "false"], { message: 'MEDICAL_ABBREVIATIONS must be "true" or "false"' })
+      .default("false")
+      .transform((value) => value === "true"),
   })
   .refine((env) => env.LLM_PROVIDER !== "anthropic" || Boolean(env.ANTHROPIC_API_KEY), {
     path: ["ANTHROPIC_API_KEY"],

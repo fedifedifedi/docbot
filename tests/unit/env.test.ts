@@ -55,6 +55,12 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...base, VECTOR_MIN_SIMILARITY: "beaucoup" })).toThrow(/VECTOR_MIN_SIMILARITY/);
   });
 
+  it("reads MEDICAL_ABBREVIATIONS as a boolean, off by default", () => {
+    expect(parseEnv(base).MEDICAL_ABBREVIATIONS).toBe(false);
+    expect(parseEnv({ ...base, MEDICAL_ABBREVIATIONS: "true" }).MEDICAL_ABBREVIATIONS).toBe(true);
+    expect(() => parseEnv({ ...base, MEDICAL_ABBREVIATIONS: "oui" })).toThrow(/MEDICAL_ABBREVIATIONS/);
+  });
+
   it("requires a SESSION_SECRET of at least 32 characters", () => {
     expect(() => parseEnv({ ...base, SESSION_SECRET: undefined })).toThrow(/SESSION_SECRET/);
     expect(() => parseEnv({ ...base, SESSION_SECRET: "short" })).toThrow(/SESSION_SECRET/);
